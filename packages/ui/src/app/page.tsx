@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import OperatorCard from "@/components/OperatorCard";
 import SourceStatus from "@/components/SourceStatus";
 import BriefingOutput from "@/components/BriefingOutput";
@@ -34,11 +35,15 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
-  useEffect(() => {
+  const fetchOperators = () => {
     fetch("/api/operators")
       .then((res) => res.json())
       .then((data) => setOperators(data.operators))
       .catch(() => setError("Failed to load operators"));
+  };
+
+  useEffect(() => {
+    fetchOperators();
   }, []);
 
   async function runTask(operator: Operator, taskId: string) {
@@ -89,7 +94,15 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="text-lg font-semibold mb-4">Operators</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Operators</h2>
+          <Link
+            href="/operators/new"
+            className="bg-blue-600 text-white px-4 py-2 rounded font-medium text-sm hover:bg-blue-700"
+          >
+            New Operator
+          </Link>
+        </div>
         {operators.length === 0 ? (
           <p className="text-gray-500">Loading operators...</p>
         ) : (
@@ -101,6 +114,7 @@ export default function Home() {
                 selected={selectedOperator?.id === operator.id}
                 loadingTaskId={loading && selectedOperator?.id === operator.id ? selectedTaskId : null}
                 onRunTask={(taskId) => runTask(operator, taskId)}
+                onDeleted={fetchOperators}
               />
             ))}
           </div>
