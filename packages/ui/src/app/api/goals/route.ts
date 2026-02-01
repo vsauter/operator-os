@@ -2,23 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join, resolve, dirname } from "path";
-import { parse, stringify } from "yaml";
+import { parse } from "yaml";
+import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { goalsUpdateSchema, validateRequest } from "@/lib/validation";
 
-interface Goal {
-  id: string;
-  description: string;
-  metric?: string;
-  target?: number;
-  deadline?: string;
-  priority?: "high" | "medium" | "low";
-}
+// Maximum file size for goals.yaml (50KB)
+const MAX_FILE_SIZE = 50 * 1024;
 
 interface GoalsConfig {
   organization?: {
     name?: string;
     role?: string;
   };
-  goals?: Goal[];
+  goals?: Array<{
+    id: string;
+    description: string;
+    metric?: string;
+    target?: number;
+    deadline?: string;
+    priority?: "high" | "medium" | "low";
+  }>;
   context?: string;
 }
 
@@ -119,12 +122,41 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  try {
-    const { raw } = await request.json();
+  // Rate limiting
+  const clientId = getClientId(request);
+  const rateLimit = checkRateLimit(`goals:${clientId}`, RATE_LIMITS.goals);
 
-    if (!raw || typeof raw !== "string") {
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded. Please wait before saving again.",
+        retryAfter: Math.ceil((rateLimit.reset - Date.now()) / 1000),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rateLimit.reset - Date.now()) / 1000)),
+        },
+      }
+    );
+  }
+
+  try {
+    const body = await request.json();
+
+    // Validate request body with Zod schema
+    const validation = validateRequest(goalsUpdateSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
+    const { raw } = validation.data;
+
+    // Check file size limit
+    const byteSize = new TextEncoder().encode(raw).length;
+    if (byteSize > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "Raw YAML content is required" },
+        { error: `Content too large. Maximum size is ${MAX_FILE_SIZE / 1024}KB.` },
         { status: 400 }
       );
     }
@@ -134,7 +166,7 @@ export async function PUT(request: NextRequest) {
       parse(raw);
     } catch (parseError) {
       return NextResponse.json(
-        { error: `Invalid YAML: ${parseError instanceof Error ? parseError.message : "Parse error"}` },
+        { error: `Invalid YAML syntax` },
         { status: 400 }
       );
     }

@@ -3,6 +3,8 @@ import { readFile } from "fs/promises";
 import { parse } from "yaml";
 import { join } from "path";
 import { gatherContext, generateBriefing } from "@operator/core";
+import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { briefingRequestSchema, validateRequest } from "@/lib/validation";
 
 interface RawConfig {
   id: string;
@@ -68,26 +70,41 @@ function isEmptyData(data: unknown): boolean {
   return false;
 }
 
-// Safe pattern for operator IDs - only lowercase letters, numbers, and hyphens
-const SAFE_ID_PATTERN = /^[a-z0-9-]+$/;
-
 export async function POST(request: NextRequest) {
+  // Rate limiting - protect against excessive LLM API usage
+  const clientId = getClientId(request);
+  const rateLimit = checkRateLimit(`briefing:${clientId}`, RATE_LIMITS.briefing);
+
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded. Please wait before generating more briefings.",
+        retryAfter: Math.ceil((rateLimit.reset - Date.now()) / 1000),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rateLimit.reset - Date.now()) / 1000)),
+          "X-RateLimit-Limit": String(rateLimit.limit),
+          "X-RateLimit-Remaining": String(rateLimit.remaining),
+          "X-RateLimit-Reset": String(rateLimit.reset),
+        },
+      }
+    );
+  }
+
   const startTime = Date.now();
 
   try {
-    const { operatorId, taskId } = await request.json();
+    const body = await request.json();
 
-    if (!operatorId) {
-      return NextResponse.json({ error: "operatorId is required" }, { status: 400 });
+    // Validate request body with Zod schema
+    const validation = validateRequest(briefingRequestSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Validate operatorId to prevent path traversal attacks
-    if (typeof operatorId !== "string" || !SAFE_ID_PATTERN.test(operatorId)) {
-      return NextResponse.json(
-        { error: "Invalid operator ID. Only lowercase letters, numbers, and hyphens are allowed." },
-        { status: 400 }
-      );
-    }
+    const { operatorId, taskId } = validation.data;
 
     const operatorPath = join(
       process.cwd(),

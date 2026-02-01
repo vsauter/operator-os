@@ -1,10 +1,26 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { readFile, writeFile, unlink, readdir } from "fs/promises";
 import { parse } from "yaml";
 import { join } from "path";
 import { validateOperator } from "@/lib/operatorSchema";
+import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { z } from "zod";
 
 const OPERATORS_DIR = join(process.cwd(), "..", "..", "config", "operators", "examples");
+
+// Maximum file size for operator YAML (100KB)
+const MAX_FILE_SIZE = 100 * 1024;
+
+// Safe ID pattern - only lowercase letters, numbers, and hyphens
+const SAFE_ID_PATTERN = /^[a-z0-9-]+$/;
+
+// Schema for operator update request
+const updateOperatorSchema = z.object({
+  yaml: z
+    .string()
+    .min(1, "YAML content is required")
+    .max(MAX_FILE_SIZE, `YAML content too large (max ${MAX_FILE_SIZE / 1024}KB)`),
+});
 
 async function findOperatorFile(id: string): Promise<string | null> {
   const files = await readdir(OPERATORS_DIR);
@@ -20,11 +36,20 @@ async function findOperatorFile(id: string): Promise<string | null> {
 }
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
+
+    // Validate ID to prevent path traversal
+    if (!SAFE_ID_PATTERN.test(id)) {
+      return NextResponse.json(
+        { error: "Invalid operator ID format" },
+        { status: 400 }
+      );
+    }
+
     const filePath = await findOperatorFile(id);
 
     if (!filePath) {
@@ -40,16 +65,52 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = params;
-    const body = await request.json();
-    const { yaml: yamlContent } = body;
+  // Rate limiting
+  const clientId = getClientId(request);
+  const rateLimit = checkRateLimit(`operators:${clientId}`, RATE_LIMITS.operators);
 
-    if (!yamlContent || typeof yamlContent !== "string") {
-      return NextResponse.json({ error: "YAML content is required" }, { status: 400 });
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded. Please wait before updating.",
+        retryAfter: Math.ceil((rateLimit.reset - Date.now()) / 1000),
+      },
+      { status: 429 }
+    );
+  }
+
+  try {
+    const { id } = await params;
+
+    // Validate ID to prevent path traversal
+    if (!SAFE_ID_PATTERN.test(id)) {
+      return NextResponse.json(
+        { error: "Invalid operator ID format" },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Validate request body with Zod schema
+    const validation = updateOperatorSchema.safeParse(body);
+    if (!validation.success) {
+      const errors = validation.error.errors.map((e) => e.message);
+      return NextResponse.json({ error: errors.join("; ") }, { status: 400 });
+    }
+
+    const { yaml: yamlContent } = validation.data;
+
+    // Check actual byte size
+    const byteSize = new TextEncoder().encode(yamlContent).length;
+    if (byteSize > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `Content too large. Maximum size is ${MAX_FILE_SIZE / 1024}KB.` },
+        { status: 400 }
+      );
     }
 
     let config;
@@ -87,11 +148,34 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  // Rate limiting
+  const clientId = getClientId(request);
+  const rateLimit = checkRateLimit(`operators:${clientId}`, RATE_LIMITS.operators);
+
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded. Please wait before deleting.",
+        retryAfter: Math.ceil((rateLimit.reset - Date.now()) / 1000),
+      },
+      { status: 429 }
+    );
+  }
+
   try {
-    const { id } = params;
+    const { id } = await params;
+
+    // Validate ID to prevent path traversal
+    if (!SAFE_ID_PATTERN.test(id)) {
+      return NextResponse.json(
+        { error: "Invalid operator ID format" },
+        { status: 400 }
+      );
+    }
+
     const filePath = await findOperatorFile(id);
 
     if (!filePath) {

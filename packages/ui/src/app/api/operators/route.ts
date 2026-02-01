@@ -1,8 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { readdir, readFile, writeFile, access } from "fs/promises";
-import { parse, stringify } from "yaml";
+import { parse } from "yaml";
 import { join } from "path";
 import { validateOperator } from "@/lib/operatorSchema";
+import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { z } from "zod";
+
+// Maximum file size for operator YAML (100KB)
+const MAX_FILE_SIZE = 100 * 1024;
+
+// Schema for operator creation request
+const createOperatorSchema = z.object({
+  yaml: z
+    .string()
+    .min(1, "YAML content is required")
+    .max(MAX_FILE_SIZE, `YAML content too large (max ${MAX_FILE_SIZE / 1024}KB)`),
+});
 
 interface RawConfig {
   id: string;
@@ -61,13 +74,45 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Rate limiting
+  const clientId = getClientId(request);
+  const rateLimit = checkRateLimit(`operators:${clientId}`, RATE_LIMITS.operators);
+
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded. Please wait before creating more operators.",
+        retryAfter: Math.ceil((rateLimit.reset - Date.now()) / 1000),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((rateLimit.reset - Date.now()) / 1000)),
+        },
+      }
+    );
+  }
+
   try {
     const body = await request.json();
-    const { yaml: yamlContent } = body;
 
-    if (!yamlContent || typeof yamlContent !== "string") {
-      return NextResponse.json({ error: "YAML content is required" }, { status: 400 });
+    // Validate request body with Zod schema
+    const validation = createOperatorSchema.safeParse(body);
+    if (!validation.success) {
+      const errors = validation.error.errors.map((e) => e.message);
+      return NextResponse.json({ error: errors.join("; ") }, { status: 400 });
+    }
+
+    const { yaml: yamlContent } = validation.data;
+
+    // Check actual byte size (handles multi-byte characters)
+    const byteSize = new TextEncoder().encode(yamlContent).length;
+    if (byteSize > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: `Content too large. Maximum size is ${MAX_FILE_SIZE / 1024}KB.` },
+        { status: 400 }
+      );
     }
 
     let config;

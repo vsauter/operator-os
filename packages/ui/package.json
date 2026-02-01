@@ -11,11 +11,12 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@operator/core": "workspace:*",
-    "next": "^14.0.0",
+    "next": "^16.1.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.0",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.2",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
