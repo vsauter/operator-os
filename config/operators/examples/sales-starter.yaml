@@ -1,6 +1,6 @@
 id: sales-starter
-name: Sales Starter
-description: Daily briefing for sales reps
+name: Sales Operator
+description: Sales tools for reps
 
 sources:
   - id: notes
@@ -12,12 +12,44 @@ sources:
     args:
       path: "/Users/vanessasauter/operator-os/test.txt"
 
-briefing:
-  prompt: |
-    Create a sales-focused daily briefing with:
+tasks:
+  briefing:
+    name: Daily Briefing
+    prompt: |
+      Create a sales-focused daily briefing with:
 
-    1. TODAY'S MEETINGS - List each meeting with relevant context
-    2. EMAILS NEEDING RESPONSE - Prioritize by urgency
-    3. FOLLOW-UPS - Based on meeting/email context
+      1. TODAY'S MEETINGS - List each meeting with relevant context
+      2. EMAILS NEEDING RESPONSE - Prioritize by urgency
+      3. FOLLOW-UPS - Based on meeting/email context
 
-    Be specific. Use names and details from the data.
+      Be specific. Use names and details from the data.
+    default: true
+
+  followup:
+    name: Follow-up Email
+    prompt: |
+      Draft a follow-up email for my most important or urgent meeting/contact.
+
+      Based on the notes, identify who needs follow-up most urgently and write
+      a professional email that:
+      - References our previous conversation
+      - Provides any promised information
+      - Suggests next steps
+
+      Output just the email, ready to send.
+
+  risk-alert:
+    name: Risk Alert
+    prompt: |
+      Analyze the notes and identify any accounts or deals at risk.
+
+      Look for:
+      - Deals with approaching deadlines
+      - Missing follow-ups
+      - Stalled conversations
+      - Pricing or budget concerns
+
+      For each risk, provide:
+      - Account name and deal size
+      - Risk description
+      - Recommended action

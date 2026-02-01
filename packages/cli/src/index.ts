@@ -12,9 +12,11 @@ program
 
 program
   .command("run")
-  .description("Run an operator to generate a briefing")
+  .description("Run an operator task")
   .argument("<operator>", "Operator name or path to YAML file")
+  .argument("[task]", "Task to run (defaults to default task)")
   .option("-v, --verbose", "Show detailed output")
+  .option("-l, --list", "List available tasks")
   .action(runCommand);
 
 program

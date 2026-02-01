@@ -12,12 +12,20 @@ export interface ContextSource {
   args: Record<string, unknown>;
 }
 
+export interface Task {
+  name: string;
+  prompt: string;
+  default?: boolean;
+}
+
 export interface OperatorConfig {
   id: string;
   name: string;
   description?: string;
   sources: ContextSource[];
-  briefing: {
+  tasks: Record<string, Task>;
+  // Backward compatibility
+  briefing?: {
     prompt: string;
   };
 }

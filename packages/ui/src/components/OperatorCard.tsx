@@ -1,23 +1,31 @@
+interface Task {
+  name: string;
+  default?: boolean;
+}
+
 interface Operator {
   id: string;
   name: string;
   description?: string;
   sources: { id: string; name: string }[];
+  tasks: Record<string, Task>;
 }
 
 interface OperatorCardProps {
   operator: Operator;
   selected: boolean;
-  loading: boolean;
-  onGenerate: () => void;
+  loadingTaskId: string | null;
+  onRunTask: (taskId: string) => void;
 }
 
 export default function OperatorCard({
   operator,
   selected,
-  loading,
-  onGenerate,
+  loadingTaskId,
+  onRunTask,
 }: OperatorCardProps) {
+  const taskEntries = Object.entries(operator.tasks);
+
   return (
     <div
       className={`border rounded-lg p-4 bg-white ${
@@ -43,17 +51,30 @@ export default function OperatorCard({
           ))}
         </div>
       </div>
-      <button
-        onClick={onGenerate}
-        disabled={loading}
-        className={`mt-4 w-full py-2 px-4 rounded font-medium transition-colors ${
-          loading
-            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-            : "bg-blue-600 text-white hover:bg-blue-700"
-        }`}
-      >
-        {loading ? "Running..." : "Run Operator"}
-      </button>
+      <div className="mt-4 space-y-2">
+        <p className="text-xs text-gray-500 uppercase tracking-wide">Tasks</p>
+        <div className="flex flex-wrap gap-2">
+          {taskEntries.map(([taskId, task]) => {
+            const isLoading = loadingTaskId === taskId;
+            return (
+              <button
+                key={taskId}
+                onClick={() => onRunTask(taskId)}
+                disabled={loadingTaskId !== null}
+                className={`py-2 px-4 rounded font-medium text-sm transition-colors ${
+                  isLoading
+                    ? "bg-blue-400 text-white cursor-not-allowed"
+                    : loadingTaskId !== null
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {isLoading ? "Running..." : task.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

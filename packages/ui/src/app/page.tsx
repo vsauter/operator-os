@@ -5,11 +5,17 @@ import OperatorCard from "@/components/OperatorCard";
 import SourceStatus from "@/components/SourceStatus";
 import BriefingOutput from "@/components/BriefingOutput";
 
+interface Task {
+  name: string;
+  default?: boolean;
+}
+
 interface Operator {
   id: string;
   name: string;
   description?: string;
   sources: { id: string; name: string }[];
+  tasks: Record<string, Task>;
 }
 
 interface SourceResult {
@@ -22,6 +28,7 @@ interface SourceResult {
 export default function Home() {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [sources, setSources] = useState<SourceResult[]>([]);
   const [briefing, setBriefing] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -34,8 +41,9 @@ export default function Home() {
       .catch(() => setError("Failed to load operators"));
   }, []);
 
-  async function generateBriefing(operator: Operator) {
+  async function runTask(operator: Operator, taskId: string) {
     setSelectedOperator(operator);
+    setSelectedTaskId(taskId);
     setBriefing("");
     setError("");
     setLoading(true);
@@ -52,13 +60,13 @@ export default function Home() {
       const res = await fetch("/api/briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operatorId: operator.id }),
+        body: JSON.stringify({ operatorId: operator.id, taskId }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to generate briefing");
+        throw new Error(data.error || "Failed to run task");
       }
 
       setSources(
@@ -91,8 +99,8 @@ export default function Home() {
                 key={operator.id}
                 operator={operator}
                 selected={selectedOperator?.id === operator.id}
-                loading={loading && selectedOperator?.id === operator.id}
-                onGenerate={() => generateBriefing(operator)}
+                loadingTaskId={loading && selectedOperator?.id === operator.id ? selectedTaskId : null}
+                onRunTask={(taskId) => runTask(operator, taskId)}
               />
             ))}
           </div>
@@ -118,7 +126,7 @@ export default function Home() {
 
       {briefing && (
         <section>
-          <h2 className="text-lg font-semibold mb-4">Briefing</h2>
+          <h2 className="text-lg font-semibold mb-4">Output</h2>
           <BriefingOutput content={briefing} />
         </section>
       )}
