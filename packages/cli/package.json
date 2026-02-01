@@ -1,0 +1,12 @@
+{
+  "name": "@operator/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "operator": "./src/index.ts"
+  },
+  "dependencies": {
+    "@operator/core": "workspace:*",
+    "commander": "^12.0.0"
+  }
+}

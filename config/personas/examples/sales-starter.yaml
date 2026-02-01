@@ -1,0 +1,23 @@
+id: sales-starter
+name: Sales Starter
+description: Daily briefing for sales reps
+
+sources:
+  - id: notes
+    name: My Notes
+    connection:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/Users/vanessasauter/operator-os"]
+    tool: read_file
+    args:
+      path: "test.txt"
+
+briefing:
+  prompt: |
+    Create a sales-focused daily briefing with:
+
+    1. TODAY'S MEETINGS - List each meeting with relevant context
+    2. EMAILS NEEDING RESPONSE - Prioritize by urgency
+    3. FOLLOW-UPS - Based on meeting/email context
+
+    Be specific. Use names and details from the data.

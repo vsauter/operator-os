@@ -1,0 +1,23 @@
+Meeting Notes - January 31, 2026
+
+9:00 AM - Pipeline Review with Sarah Chen
+- Q1 target: $450K, currently at $280K
+- 3 deals in final stages: Acme Corp ($85K), TechFlow ($42K), Meridian ($65K)
+- Need to follow up with Acme Corp by Friday - they're waiting on pricing proposal
+
+11:00 AM - Demo call with David Park (Nexus Industries)
+- Interested in enterprise tier
+- Budget approved for Q1
+- Decision maker: CFO Jennifer Walsh (not on call today)
+- Action: Send ROI calculator and schedule follow-up with Jennifer
+
+2:00 PM - Check-in with Marcus (new lead from conference)
+- Met at SaaS Summit last week
+- Company: GrowthLabs, 200 employees
+- Pain point: manual reporting taking 20 hours/week
+- Send case study from similar company (DataDriven Inc)
+
+Emails to respond to:
+- URGENT: Acme Corp asking about implementation timeline
+- TechFlow wants to add 2 more seats to proposal
+- Jennifer Walsh (Nexus) requesting security documentation

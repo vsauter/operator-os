@@ -1,0 +1,16 @@
+{
+  "name": "operator-os",
+  "type": "module",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "pnpm tsx packages/cli/src/index.ts",
+    "build": "tsc -b",
+    "briefing": "pnpm tsx packages/cli/src/index.ts briefing"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "tsx": "^4.7.0",
+    "@types/node": "^20.0.0"
+  }
+}

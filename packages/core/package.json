@@ -1,0 +1,14 @@
+{
+  "name": "@operator/core",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@anthropic-ai/sdk": "^0.30.0",
+    "yaml": "^2.3.0"
+  }
+}
