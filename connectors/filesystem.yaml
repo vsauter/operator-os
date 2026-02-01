@@ -1,0 +1,44 @@
+id: filesystem
+name: Filesystem
+type: mcp
+description: Local filesystem connector for reading files and directories
+
+mcp:
+  package: "@anthropic/mcp-server-filesystem"
+  env: {}
+
+fetches:
+  read:
+    tool: read_file
+    description: "Read contents of a file"
+    params:
+      path:
+        type: string
+        required: true
+        description: "Path to the file to read"
+
+  list:
+    tool: list_directory
+    description: "List contents of a directory"
+    params:
+      path:
+        type: string
+        required: true
+        description: "Path to the directory to list"
+
+  search:
+    tool: search_files
+    description: "Search for files matching a pattern"
+    params:
+      path:
+        type: string
+        required: true
+        description: "Base path to search from"
+      pattern:
+        type: string
+        required: true
+        description: "Glob pattern to match files"
+
+auth:
+  type: none
+  fields: {}

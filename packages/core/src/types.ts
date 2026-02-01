@@ -1,9 +1,18 @@
+// Re-export connector types for convenience
+export type {
+  ConnectorSource,
+  LegacySource,
+  OperatorSource,
+} from "./connectors/types.js";
+export { isConnectorSource, isLegacySource } from "./connectors/types.js";
+
 export interface MCPConnection {
   command: string;
   args: string[];
   env?: Record<string, string>;
 }
 
+// Legacy ContextSource type (for backward compatibility)
 export interface ContextSource {
   id: string;
   name: string;
@@ -18,11 +27,14 @@ export interface Task {
   default?: boolean;
 }
 
+// Import OperatorSource from connectors for the new config type
+import type { OperatorSource } from "./connectors/types.js";
+
 export interface OperatorConfig {
   id: string;
   name: string;
   description?: string;
-  sources: ContextSource[];
+  sources: OperatorSource[];
   tasks: Record<string, Task>;
   // Backward compatibility
   briefing?: {

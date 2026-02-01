@@ -1,0 +1,60 @@
+id: linear
+name: Linear
+type: mcp
+description: Linear project management connector for issues and projects
+
+mcp:
+  package: "@linear/mcp-server"
+  env:
+    LINEAR_API_KEY: "{{credentials.apiKey}}"
+
+fetches:
+  issues:
+    tool: list_issues
+    description: "Get issues assigned to you"
+    params:
+      limit:
+        type: number
+        default: 20
+        description: "Maximum number of issues to return"
+      state:
+        type: string
+        description: "Filter by state (e.g., 'started', 'completed')"
+
+  my-issues:
+    tool: list_my_issues
+    description: "Get issues assigned to the authenticated user"
+    params:
+      limit:
+        type: number
+        default: 20
+        description: "Maximum number of issues to return"
+
+  issue:
+    tool: get_issue
+    description: "Get a specific issue"
+    params:
+      issueId:
+        type: string
+        required: true
+        description: "The issue ID to retrieve"
+
+  projects:
+    tool: list_projects
+    description: "Get projects"
+    params:
+      limit:
+        type: number
+        default: 20
+        description: "Maximum number of projects to return"
+
+  teams:
+    tool: list_teams
+    description: "Get teams"
+
+auth:
+  type: api-key
+  fields:
+    apiKey:
+      label: "API Key"
+      type: password

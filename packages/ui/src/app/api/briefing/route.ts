@@ -7,17 +7,22 @@ import { gatherContext, generateBriefing } from "@operator/core";
 interface RawConfig {
   id: string;
   name: string;
-  sources: {
-    id: string;
-    name: string;
-    connection: {
+  sources: Array<{
+    // New connector-based format
+    connector?: string;
+    fetch?: string;
+    params?: Record<string, unknown>;
+    // Legacy format
+    id?: string;
+    name?: string;
+    connection?: {
       command: string;
       args: string[];
       env?: Record<string, string>;
     };
-    tool: string;
-    args: Record<string, unknown>;
-  }[];
+    tool?: string;
+    args?: Record<string, unknown>;
+  }>;
   tasks?: Record<string, { name: string; prompt: string; default?: boolean }>;
   briefing?: { prompt: string };
 }
@@ -86,9 +91,9 @@ export async function POST(request: NextRequest) {
     const content = await readFile(operatorPath, "utf-8");
     const config = parse(content) as RawConfig;
 
-    // Substitute environment variables
+    // Substitute environment variables for legacy sources only
     for (const source of config.sources) {
-      if (source.connection.env) {
+      if (source.connection?.env) {
         for (const [key, value] of Object.entries(source.connection.env)) {
           if (typeof value === "string" && value.startsWith("$")) {
             const envVar = value.slice(1);
@@ -122,7 +127,9 @@ export async function POST(request: NextRequest) {
 
     // Start timing for all sources
     for (const source of config.sources) {
-      sourceTimings.set(source.id, { startTime: Date.now() });
+      // Generate ID for new connector format or use legacy id
+      const sourceId = source.id ?? (source.connector && source.fetch ? `${source.connector}-${source.fetch}` : "unknown");
+      sourceTimings.set(sourceId, { startTime: Date.now() });
     }
 
     const contextResults = await gatherContext(config.sources);

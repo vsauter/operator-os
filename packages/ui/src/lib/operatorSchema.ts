@@ -1,4 +1,5 @@
-export interface OperatorSource {
+// Legacy source format (direct MCP connection)
+export interface LegacyOperatorSource {
   id: string;
   name: string;
   connection: {
@@ -8,6 +9,27 @@ export interface OperatorSource {
   };
   tool: string;
   args?: Record<string, unknown>;
+}
+
+// New connector-based source format
+export interface ConnectorOperatorSource {
+  connector: string;
+  fetch: string;
+  id?: string;
+  name?: string;
+  params?: Record<string, unknown>;
+}
+
+// Union type for both formats
+export type OperatorSource = LegacyOperatorSource | ConnectorOperatorSource;
+
+// Type guards
+export function isConnectorSource(source: OperatorSource): source is ConnectorOperatorSource {
+  return "connector" in source && "fetch" in source;
+}
+
+export function isLegacySource(source: OperatorSource): source is LegacyOperatorSource {
+  return "connection" in source && "tool" in source;
 }
 
 export interface OperatorTask {
@@ -77,33 +99,53 @@ export function validateOperator(config: unknown): ValidationError[] {
 
       const s = source as Record<string, unknown>;
 
-      if (!s.id) {
-        errors.push({ field: `sources[${index}].id`, message: "Source ID is required" });
-      } else if (typeof s.id === "string") {
-        if (sourceIds.has(s.id)) {
-          errors.push({ field: `sources[${index}].id`, message: `Duplicate source ID: ${s.id}` });
+      // Check if it's a connector-based source (new format)
+      if (s.connector && s.fetch) {
+        // New connector format - connector and fetch are required
+        if (typeof s.connector !== "string") {
+          errors.push({ field: `sources[${index}].connector`, message: "Connector must be a string" });
         }
-        sourceIds.add(s.id);
-      }
-
-      if (!s.name) {
-        errors.push({ field: `sources[${index}].name`, message: "Source name is required" });
-      }
-
-      if (!s.connection || typeof s.connection !== "object") {
-        errors.push({ field: `sources[${index}].connection`, message: "Source connection is required" });
+        if (typeof s.fetch !== "string") {
+          errors.push({ field: `sources[${index}].fetch`, message: "Fetch must be a string" });
+        }
+        // id and name are optional for connector sources
+        const sourceId = s.id ?? `${s.connector}-${s.fetch}`;
+        if (typeof sourceId === "string" && sourceIds.has(sourceId)) {
+          errors.push({ field: `sources[${index}]`, message: `Duplicate source ID: ${sourceId}` });
+        }
+        if (typeof sourceId === "string") {
+          sourceIds.add(sourceId);
+        }
       } else {
-        const conn = s.connection as Record<string, unknown>;
-        if (!conn.command) {
-          errors.push({ field: `sources[${index}].connection.command`, message: "Connection command is required" });
+        // Legacy format - id, name, connection, tool are required
+        if (!s.id) {
+          errors.push({ field: `sources[${index}].id`, message: "Source ID is required" });
+        } else if (typeof s.id === "string") {
+          if (sourceIds.has(s.id)) {
+            errors.push({ field: `sources[${index}].id`, message: `Duplicate source ID: ${s.id}` });
+          }
+          sourceIds.add(s.id);
         }
-        if (!conn.args || !Array.isArray(conn.args)) {
-          errors.push({ field: `sources[${index}].connection.args`, message: "Connection args must be an array" });
-        }
-      }
 
-      if (!s.tool) {
-        errors.push({ field: `sources[${index}].tool`, message: "Source tool is required" });
+        if (!s.name) {
+          errors.push({ field: `sources[${index}].name`, message: "Source name is required" });
+        }
+
+        if (!s.connection || typeof s.connection !== "object") {
+          errors.push({ field: `sources[${index}].connection`, message: "Source connection is required" });
+        } else {
+          const conn = s.connection as Record<string, unknown>;
+          if (!conn.command) {
+            errors.push({ field: `sources[${index}].connection.command`, message: "Connection command is required" });
+          }
+          if (!conn.args || !Array.isArray(conn.args)) {
+            errors.push({ field: `sources[${index}].connection.args`, message: "Connection args must be an array" });
+          }
+        }
+
+        if (!s.tool) {
+          errors.push({ field: `sources[${index}].tool`, message: "Source tool is required" });
+        }
       }
     });
   }

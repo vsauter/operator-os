@@ -1,15 +1,56 @@
 import { readFile } from "fs/promises";
 import { parse } from "yaml";
 import { resolve } from "path";
-import type { OperatorConfig, Task } from "../types";
+import type { OperatorConfig, Task } from "../types.js";
+import type { OperatorSource, LegacySource, ConnectorSource } from "../connectors/types.js";
 
 interface RawOperatorConfig {
   id: string;
   name: string;
   description?: string;
-  sources: OperatorConfig["sources"];
+  sources: unknown[];
   tasks?: Record<string, Task>;
   briefing?: { prompt: string };
+}
+
+/**
+ * Process environment variable substitution in legacy source format
+ */
+function processLegacySourceEnv(source: LegacySource): LegacySource {
+  if (source.connection.env) {
+    const processedEnv: Record<string, string> = {};
+    for (const [key, value] of Object.entries(source.connection.env)) {
+      if (typeof value === "string" && value.startsWith("$")) {
+        const envVar = value.slice(1);
+        processedEnv[key] = process.env[envVar] || "";
+      } else {
+        processedEnv[key] = value;
+      }
+    }
+    source.connection.env = processedEnv;
+  }
+  return source;
+}
+
+/**
+ * Normalize a source from YAML to the appropriate type
+ */
+function normalizeSource(rawSource: unknown): OperatorSource {
+  const source = rawSource as Record<string, unknown>;
+
+  // Check if it's the new connector format
+  if ("connector" in source && "fetch" in source) {
+    return source as ConnectorSource;
+  }
+
+  // Check if it's the legacy format
+  if ("connection" in source && "tool" in source) {
+    return processLegacySourceEnv(source as LegacySource);
+  }
+
+  throw new Error(
+    `Invalid source format. Expected either { connector, fetch } or { connection, tool }. Got: ${JSON.stringify(source)}`
+  );
 }
 
 export async function loadOperator(nameOrPath: string): Promise<OperatorConfig> {
@@ -43,17 +84,8 @@ export async function loadOperator(nameOrPath: string): Promise<OperatorConfig> 
   const content = await readFile(filePath, "utf-8");
   const raw = parse(content) as RawOperatorConfig;
 
-  // Substitute environment variables in sources
-  for (const source of raw.sources) {
-    if (source.connection.env) {
-      for (const [key, value] of Object.entries(source.connection.env)) {
-        if (typeof value === "string" && value.startsWith("$")) {
-          const envVar = value.slice(1);
-          source.connection.env[key] = process.env[envVar] || "";
-        }
-      }
-    }
-  }
+  // Normalize sources to support both formats
+  const sources: OperatorSource[] = raw.sources.map(normalizeSource);
 
   // Handle backward compatibility: convert briefing to tasks
   let tasks: Record<string, Task>;
@@ -75,7 +107,7 @@ export async function loadOperator(nameOrPath: string): Promise<OperatorConfig> 
     id: raw.id,
     name: raw.name,
     description: raw.description,
-    sources: raw.sources,
+    sources,
     tasks,
     briefing: raw.briefing,
   };

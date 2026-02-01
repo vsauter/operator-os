@@ -1,0 +1,66 @@
+id: pylon
+name: Pylon
+type: api
+description: Pylon customer support connector for issues and accounts
+
+api:
+  baseUrl: https://api.usepylon.com/v1
+  auth:
+    type: token
+    token: "{{credentials.apiKey}}"
+
+fetches:
+  issues:
+    endpoint: GET /issues
+    description: "Get support issues"
+    params:
+      status:
+        type: string
+        description: "Filter by status (open, closed, pending)"
+      limit:
+        type: number
+        default: 50
+        description: "Maximum number of issues to return"
+
+  issue:
+    endpoint: GET /issues/{{params.issueId}}
+    description: "Get a specific issue"
+    params:
+      issueId:
+        type: string
+        required: true
+        description: "The issue ID to retrieve"
+
+  accounts:
+    endpoint: GET /accounts
+    description: "Get customer accounts"
+    params:
+      limit:
+        type: number
+        default: 50
+        description: "Maximum number of accounts to return"
+
+  account:
+    endpoint: GET /accounts/{{params.accountId}}
+    description: "Get a specific account"
+    params:
+      accountId:
+        type: string
+        required: true
+        description: "The account ID to retrieve"
+
+  contacts:
+    endpoint: GET /contacts
+    description: "Get contacts"
+    params:
+      limit:
+        type: number
+        default: 50
+        description: "Maximum number of contacts to return"
+
+auth:
+  type: api-key
+  fields:
+    apiKey:
+      label: "API Key"
+      type: password
