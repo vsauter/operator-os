@@ -1,0 +1,157 @@
+id: hubspot
+name: HubSpot
+type: mcp
+description: HubSpot CRM connector for deals, contacts, companies, pipelines, and engagements
+
+mcp:
+  # Run our local connector
+  command: npx
+  args: ["tsx", "packages/connectors/src/hubspot/index.ts"]
+  env:
+    HUBSPOT_ACCESS_TOKEN: "{{credentials.accessToken}}"
+    HUBSPOT_API_URL: "{{credentials.apiUrl}}"
+
+fetches:
+  # Contacts
+  contacts:
+    tool: get_contacts
+    description: "Get contacts from HubSpot"
+    params:
+      limit:
+        type: number
+        default: 20
+
+  contact:
+    tool: get_contact
+    description: "Get a specific contact by ID"
+    params:
+      contact_id:
+        type: string
+        required: true
+
+  search_contacts:
+    tool: search_contacts
+    description: "Search contacts by name, email, or company"
+    params:
+      query:
+        type: string
+        required: true
+      limit:
+        type: number
+        default: 20
+
+  recent_contacts:
+    tool: get_recent_contacts
+    description: "Get recently created contacts"
+    params:
+      days_back:
+        type: number
+        default: 7
+
+  # Companies
+  companies:
+    tool: get_companies
+    description: "Get companies from HubSpot"
+    params:
+      limit:
+        type: number
+        default: 20
+
+  company:
+    tool: get_company
+    description: "Get a specific company by ID"
+    params:
+      company_id:
+        type: string
+        required: true
+
+  search_companies:
+    tool: search_companies
+    description: "Search companies by name or domain"
+    params:
+      query:
+        type: string
+        required: true
+      limit:
+        type: number
+        default: 20
+
+  # Deals
+  deals:
+    tool: get_deals
+    description: "Get deals from HubSpot"
+    params:
+      limit:
+        type: number
+        default: 20
+
+  deal:
+    tool: get_deal
+    description: "Get a specific deal by ID"
+    params:
+      deal_id:
+        type: string
+        required: true
+
+  open_deals:
+    tool: get_open_deals
+    description: "Get all open deals sorted by amount"
+
+  open_deals_with_owners:
+    tool: get_open_deals_with_owners
+    description: "Get open deals with owner names resolved"
+
+  deals_closing_soon:
+    tool: get_deals_closing_soon
+    description: "Get deals closing within a timeframe"
+    params:
+      days_ahead:
+        type: number
+        default: 30
+
+  search_deals:
+    tool: search_deals
+    description: "Search deals by name"
+    params:
+      query:
+        type: string
+        required: true
+      limit:
+        type: number
+        default: 20
+
+  # Owners & Pipelines
+  owners:
+    tool: get_owners
+    description: "Get all HubSpot owners (sales reps)"
+
+  pipelines:
+    tool: get_pipelines
+    description: "Get deal pipelines and stages"
+
+  pipeline_summary:
+    tool: get_pipeline_summary
+    description: "Get pipeline summary with deal counts per stage"
+
+  # Engagements & Metrics
+  recent_engagements:
+    tool: get_recent_engagements
+    description: "Get recent activities (calls, emails, meetings)"
+    params:
+      days_back:
+        type: number
+        default: 7
+
+  crm_metrics:
+    tool: get_crm_metrics
+    description: "Get high-level CRM metrics"
+
+auth:
+  type: token
+  fields:
+    accessToken:
+      label: "Private App Access Token"
+      type: password
+    apiUrl:
+      label: "API URL (optional)"
+      default: "https://api.hubapi.com"

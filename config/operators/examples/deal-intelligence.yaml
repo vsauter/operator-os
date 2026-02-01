@@ -1,0 +1,66 @@
+id: deal-intelligence
+name: Deal Intelligence
+description: Combines Gong call data with HubSpot deals to identify high-priority opportunities
+
+sources:
+  # HubSpot deals with owner information
+  - connector: hubspot
+    fetch: open_deals_with_owners
+
+  # HubSpot pipeline summary for context
+  - connector: hubspot
+    fetch: pipeline_summary
+
+  # Gong calls from the last 7 days
+  - connector: gong
+    fetch: recent_calls
+    params:
+      days_back: 7
+
+tasks:
+  important-deals:
+    name: Important Deals Analysis
+    prompt: |
+      Analyze the HubSpot deals and Gong call activity to identify the most important deals from the last week.
+
+      For each important deal, provide:
+      1. **Deal Name** and amount
+      2. **Owner** (AE and SE if assigned)
+      3. **Stage** and close date
+      4. **Recent Activity** - calls from Gong in the last 7 days
+      5. **Risk Level** - based on activity and close date proximity
+      6. **Recommended Action** - what should happen next
+
+      Prioritize deals by:
+      - Deals with close dates in the next 30 days
+      - Large deal amounts
+      - Deals with recent call activity (good momentum)
+      - Deals WITHOUT recent calls that need attention
+
+      Format as a clear, actionable summary for a sales leader.
+    default: true
+
+  deal-gaps:
+    name: Deal Coverage Gaps
+    prompt: |
+      Cross-reference HubSpot deals with Gong call activity to find coverage gaps.
+
+      Identify:
+      1. **Deals without recent calls** - open deals with no Gong activity in 7+ days
+      2. **High-value deals needing attention** - large deals with low engagement
+      3. **Deals closing soon without recent contact** - urgent gaps
+
+      For each gap, recommend specific actions.
+
+  weekly-momentum:
+    name: Weekly Momentum Report
+    prompt: |
+      Create a weekly momentum report combining HubSpot and Gong data:
+
+      1. **Pipeline Summary** - total value by stage
+      2. **Call Activity** - total calls, hours, deals covered
+      3. **Top Movers** - deals with most engagement this week
+      4. **At Risk** - deals losing momentum
+      5. **Wins/Losses** - any deals closed this week
+
+      Highlight what's working and what needs attention.

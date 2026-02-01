@@ -1,0 +1,86 @@
+id: gong
+name: Gong
+type: mcp
+description: Gong sales intelligence connector for calls, deals, and team activity
+
+mcp:
+  # Run our local connector
+  command: npx
+  args: ["tsx", "packages/connectors/src/gong/index.ts"]
+  env:
+    GONG_ACCESS_KEY: "{{credentials.accessKey}}"
+    GONG_ACCESS_KEY_SECRET: "{{credentials.accessSecret}}"
+    GONG_API_URL: "{{credentials.apiUrl}}"
+
+fetches:
+  # Calls
+  recent_calls:
+    tool: get_recent_calls
+    description: "Get recent sales calls"
+    params:
+      days_back:
+        type: number
+        default: 7
+        description: "Number of days to look back"
+
+  call_details:
+    tool: get_call_details
+    description: "Get details for a specific call"
+    params:
+      call_id:
+        type: string
+        required: true
+        description: "The call ID to retrieve"
+
+  search_calls:
+    tool: search_calls
+    description: "Search for calls by participant or keyword"
+    params:
+      query:
+        type: string
+        required: true
+      days_back:
+        type: number
+        default: 30
+
+  # Deals (mock only - Gong API doesn't have native deals)
+  open_deals:
+    tool: get_open_deals
+    description: "Get open deals (mock data)"
+
+  important_deals:
+    tool: get_important_deals
+    description: "Get important deals ranked by risk and size"
+
+  at_risk_deals:
+    tool: get_at_risk_deals
+    description: "Get deals at risk due to low engagement"
+
+  deal_activity:
+    tool: get_deal_activity
+    description: "Get activity for a specific deal"
+    params:
+      deal_id:
+        type: string
+        required: true
+
+  # Team
+  team_activity:
+    tool: get_team_activity
+    description: "Get team activity overview"
+    params:
+      days_back:
+        type: number
+        default: 7
+
+auth:
+  type: basic
+  fields:
+    accessKey:
+      label: "Access Key"
+    accessSecret:
+      label: "Access Secret"
+      type: password
+    apiUrl:
+      label: "API URL"
+      default: "https://api.gong.io/v2"
