@@ -1,5 +1,5 @@
-import { createClient, callTool, closeClient } from "../mcp/client.js";
-import type { ContextSource, ContextResult } from "../types.js";
+import { createClient, callTool, closeClient } from "../mcp/client";
+import type { ContextSource, ContextResult } from "../types";
 
 export async function gatherContext(
   sources: ContextSource[]

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { briefingCommand } from "./commands/briefing.js";
+import { runCommand } from "./commands/run.js";
+import { devCommand } from "./commands/dev.js";
 
 const program = new Command();
 
@@ -10,10 +11,16 @@ program
   .version("0.1.0");
 
 program
-  .command("briefing")
-  .description("Generate a briefing from a persona")
-  .argument("<persona>", "Persona name or path to YAML file")
+  .command("run")
+  .description("Run an operator to generate a briefing")
+  .argument("<operator>", "Operator name or path to YAML file")
   .option("-v, --verbose", "Show detailed output")
-  .action(briefingCommand);
+  .action(runCommand);
+
+program
+  .command("dev")
+  .description("Start the web UI")
+  .option("-p, --port <port>", "Port to run on", "3000")
+  .action(devCommand);
 
 program.parse();

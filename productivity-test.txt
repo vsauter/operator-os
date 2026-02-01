@@ -1,0 +1,8 @@
+echo "Emails to respond to:
+- John from Acme wants pricing by Tuesday
+- Sarah asked about the demo
+- Mom's birthday is Friday
+
+Meetings today:
+- 2pm standup
+- 4pm customer call with Acme" > ~/operator-test.txt

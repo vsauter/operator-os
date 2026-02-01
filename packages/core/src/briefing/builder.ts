@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ContextResult, Briefing } from "../types.js";
+import type { ContextResult, Briefing } from "../types";
 
 const DEFAULT_PROMPT = `You are generating a daily briefing based on the provided context.
 

@@ -12,7 +12,7 @@ export interface ContextSource {
   args: Record<string, unknown>;
 }
 
-export interface PersonaConfig {
+export interface OperatorConfig {
   id: string;
   name: string;
   description?: string;

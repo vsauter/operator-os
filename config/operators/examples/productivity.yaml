@@ -1,0 +1,25 @@
+# config/operators/examples/productivity.yaml
+
+id: productivity
+name: Productivity
+description: Daily productivity briefing
+
+sources:
+  - id: notes
+    name: My Notes
+    connection:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/Users/vanessasauter/operator-os"]
+    tool: read_file
+    args:
+      path: "/Users/vanessasauter/operator-os/productivity-test.txt"
+
+briefing:
+  prompt: |
+    Create a productivity briefing:
+    
+    1. TASKS TO COMPLETE - Prioritize by urgency
+    2. EMAILS NEEDING RESPONSE - Who and why
+    3. TODAY'S FOCUS - One thing to prioritize
+    
+    Be specific. Use names and details from the notes.

@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+.prose h1 {
+  @apply text-2xl font-bold mt-6 mb-4;
+}
+
+.prose h2 {
+  @apply text-xl font-semibold mt-5 mb-3;
+}
+
+.prose h3 {
+  @apply text-lg font-medium mt-4 mb-2;
+}
+
+.prose p {
+  @apply my-2;
+}
+
+.prose ul {
+  @apply list-disc pl-6 my-2;
+}
+
+.prose ol {
+  @apply list-decimal pl-6 my-2;
+}
+
+.prose li {
+  @apply my-1;
+}
+
+.prose strong {
+  @apply font-semibold;
+}
+
+.prose hr {
+  @apply my-4 border-gray-300;
+}
