@@ -68,6 +68,9 @@ function isEmptyData(data: unknown): boolean {
   return false;
 }
 
+// Safe pattern for operator IDs - only lowercase letters, numbers, and hyphens
+const SAFE_ID_PATTERN = /^[a-z0-9-]+$/;
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
@@ -76,6 +79,14 @@ export async function POST(request: NextRequest) {
 
     if (!operatorId) {
       return NextResponse.json({ error: "operatorId is required" }, { status: 400 });
+    }
+
+    // Validate operatorId to prevent path traversal attacks
+    if (typeof operatorId !== "string" || !SAFE_ID_PATTERN.test(operatorId)) {
+      return NextResponse.json(
+        { error: "Invalid operator ID. Only lowercase letters, numbers, and hyphens are allowed." },
+        { status: 400 }
+      );
     }
 
     const operatorPath = join(

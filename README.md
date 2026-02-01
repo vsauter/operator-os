@@ -406,6 +406,42 @@ The pattern is: `{CONNECTOR_ID}_{FIELD_NAME}` in SCREAMING_SNAKE_CASE.
    └────────────────────────────────────────────┘
 ```
 
+## Security
+
+### Local Development (Default)
+
+The development server binds to `localhost` by default, which means only your machine can access it. This is secure for local development - no authentication is required.
+
+**Important:** Never expose the development server to a network by running with `-H 0.0.0.0` without enabling authentication.
+
+### Optional API Key Authentication
+
+If you need to expose OperatorOS on a private network (e.g., for team access), enable API key authentication:
+
+1. Generate a secure random key:
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. Add to your `.env.local`:
+   ```bash
+   OPERATOR_API_KEY=your-generated-key-here
+   ```
+
+3. All API requests now require the header:
+   ```
+   Authorization: Bearer your-generated-key-here
+   ```
+
+When `OPERATOR_API_KEY` is not set, authentication is disabled (localhost mode).
+
+### Credential Security
+
+- Copy `.env.example` to `.env.local` for your credentials
+- `.env.local` is gitignored and won't be committed
+- Never commit real API keys to version control
+- Rotate credentials if accidentally exposed
+
 ## License
 
 Apache 2.0 - See [LICENSE](LICENSE) for details.
