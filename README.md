@@ -233,10 +233,132 @@ pnpm typecheck
 
 ### Adding a New Connector
 
-1. Create connector definition in `connectors/<name>.yaml`
-2. For MCP connectors, implement the server in `packages/connectors/src/<name>/`
-3. Export from `packages/connectors/src/index.ts`
-4. Use in operator configs via `connector: <name>`
+There are two ways to create a custom connector:
+
+#### Option 1: API Connector (YAML Only)
+
+For simple REST APIs, create a YAML file in `connectors/`:
+
+```yaml
+# connectors/my-service.yaml
+id: my-service
+name: My Service
+type: api
+
+api:
+  baseUrl: https://api.myservice.com
+  auth:
+    type: token
+    token: "{{credentials.apiKey}}"
+
+fetches:
+  get_items:
+    endpoint: GET /items
+    description: "Get all items"
+    params:
+      limit:
+        type: number
+        default: 20
+
+auth:
+  type: token
+  fields:
+    apiKey:
+      label: "API Key"
+      type: password
+```
+
+Set `MY_SERVICE_API_KEY` as an environment variable and it works automatically.
+
+#### Option 2: MCP Connector (Full Control)
+
+For complex integrations, create an MCP server:
+
+**Step 1:** Create connector YAML in `connectors/`:
+
+```yaml
+# connectors/my-service.yaml
+id: my-service
+name: My Service
+type: mcp
+
+mcp:
+  command: npx
+  args: ["tsx", "packages/connectors/src/my-service/index.ts"]
+  env:
+    MY_SERVICE_API_KEY: "{{credentials.apiKey}}"
+
+fetches:
+  get_items:
+    tool: get_items
+    description: "Get items from My Service"
+
+auth:
+  type: token
+  fields:
+    apiKey:
+      label: "API Key"
+      type: password
+```
+
+**Step 2:** Create the MCP server in `packages/connectors/src/my-service/`:
+
+```typescript
+// packages/connectors/src/my-service/index.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const server = new McpServer({ name: "my-service", version: "0.1.0" });
+
+server.tool(
+  "get_items",
+  "Get items from the service",
+  { limit: { type: "number", description: "Max items to return" } },
+  async (args) => {
+    const response = await fetch("https://api.myservice.com/items", {
+      headers: { Authorization: `Bearer ${process.env.MY_SERVICE_API_KEY}` },
+    });
+    const data = await response.json();
+    return { content: [{ type: "text", text: JSON.stringify(data) }] };
+  }
+);
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+main().catch(console.error);
+```
+
+**Step 3:** Use in an operator:
+
+```yaml
+# config/operators/my-operator.yaml
+id: my-operator
+name: My Operator
+
+sources:
+  - connector: my-service
+    fetch: get_items
+    params:
+      limit: 10
+
+tasks:
+  analyze:
+    name: Analyze Items
+    prompt: Analyze the items and provide insights.
+    default: true
+```
+
+#### Credential Resolution
+
+Environment variables are automatically resolved from auth field names:
+- `apiKey` → `MY_SERVICE_API_KEY`
+- `accessToken` → `MY_SERVICE_ACCESS_TOKEN`
+- `accessSecret` → `MY_SERVICE_ACCESS_SECRET`
+
+The pattern is: `{CONNECTOR_ID}_{FIELD_NAME}` in SCREAMING_SNAKE_CASE.
 
 ### Creating an Operator
 
