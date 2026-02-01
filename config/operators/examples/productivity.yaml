@@ -1,25 +1,32 @@
 # config/operators/examples/productivity.yaml
+# Example operator showing filesystem and Linear integration
 
 id: productivity
 name: Productivity
-description: Daily productivity briefing
+description: Daily productivity briefing combining notes and tasks
 
 sources:
-  - id: notes
-    name: My Notes
-    connection:
-      command: npx
-      args: ["-y", "@modelcontextprotocol/server-filesystem", "/Users/vanessasauter/operator-os"]
-    tool: read_file
-    args:
-      path: "/Users/vanessasauter/operator-os/productivity-test.txt"
+  # Linear tickets assigned to you
+  - connector: linear
+    fetch: my-issues
+    params:
+      limit: 10
 
-briefing:
-  prompt: |
-    Create a productivity briefing:
-    
-    1. TASKS TO COMPLETE - Prioritize by urgency
-    2. EMAILS NEEDING RESPONSE - Who and why
-    3. TODAY'S FOCUS - One thing to prioritize
-    
-    Be specific. Use names and details from the notes.
+  # Example: Read a local notes file (customize the path)
+  # - connector: filesystem
+  #   fetch: read_file
+  #   params:
+  #     path: "./notes/daily-tasks.txt"
+
+tasks:
+  briefing:
+    name: Daily Briefing
+    prompt: |
+      Create a productivity briefing based on the available data:
+
+      1. TASKS TO COMPLETE - Prioritize by urgency and deadline
+      2. BLOCKED ITEMS - What's waiting on others
+      3. TODAY'S FOCUS - One thing to prioritize
+
+      Be specific. Use ticket IDs and titles where available.
+    default: true
