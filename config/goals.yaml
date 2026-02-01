@@ -1,0 +1,35 @@
+# Organization Goals Configuration
+# These goals are automatically injected into all operator briefings
+# to provide unified context and priorities.
+
+organization:
+  name: "Acme Corp"
+  role: "Delivery Manager"
+
+# Primary goals that drive decision-making
+goals:
+  - id: revenue-target
+    description: "Achieve $8 million in revenue by end of 2026"
+    metric: revenue
+    target: 8000000
+    deadline: 2026-12-31
+    priority: high
+
+  - id: delivery-excellence
+    description: "Maintain 98% on-time delivery rate across all accounts"
+    priority: high
+
+  - id: customer-retention
+    description: "Achieve 95% customer retention rate"
+    priority: medium
+
+# Additional context injected into every briefing
+context: |
+  You are assisting a Delivery Manager responsible for ensuring successful
+  deal execution and customer delivery. Every analysis should consider how
+  it relates to achieving the $8M revenue target by end of 2026.
+
+  When analyzing deals or activities, prioritize:
+  1. Revenue impact - how does this affect the $8M goal?
+  2. Delivery risk - what could prevent successful delivery?
+  3. Customer satisfaction - will this help retain customers?
