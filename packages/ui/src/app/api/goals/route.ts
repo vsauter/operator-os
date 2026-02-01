@@ -22,15 +22,16 @@ interface GoalsConfig {
   context?: string;
 }
 
+type GoalsSource = "user" | "project" | "example";
+
 function findProjectRoot(): string {
   let dir = process.cwd();
 
-  // First try walking up from cwd
   while (true) {
-    if (existsSync(resolve(dir, "config"))) {
+    if (existsSync(resolve(dir, "pnpm-workspace.yaml"))) {
       return dir;
     }
-    if (existsSync(resolve(dir, "pnpm-workspace.yaml"))) {
+    if (existsSync(resolve(dir, "config")) && existsSync(resolve(dir, "connectors"))) {
       return dir;
     }
 
@@ -39,43 +40,75 @@ function findProjectRoot(): string {
     dir = parent;
   }
 
-  // Fallback: check relative paths from cwd (for Next.js context)
-  const relativePaths = ["../..", "../../../"];
-  for (const rel of relativePaths) {
-    const testPath = resolve(process.cwd(), rel);
-    if (existsSync(resolve(testPath, "config"))) {
-      return testPath;
-    }
-  }
-
   return process.cwd();
 }
 
-function getGoalsPath(): string {
+function getUserConfigDir(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  return join(home, ".operator");
+}
+
+function getGoalsPaths(): { path: string; source: GoalsSource }[] {
   const projectRoot = findProjectRoot();
-  return join(projectRoot, "config", "goals.yaml");
+  const userConfigDir = getUserConfigDir();
+
+  return [
+    { path: join(userConfigDir, "goals.yaml"), source: "user" },
+    { path: resolve(projectRoot, "config/goals.yaml"), source: "project" },
+    { path: resolve(projectRoot, "config/goals.example.yaml"), source: "example" },
+  ];
+}
+
+function getProjectGoalsPath(): string {
+  const projectRoot = findProjectRoot();
+  return resolve(projectRoot, "config/goals.yaml");
 }
 
 export async function GET() {
   try {
-    const goalsPath = getGoalsPath();
+    const paths = getGoalsPaths();
 
-    if (!existsSync(goalsPath)) {
-      // Return default empty config
-      return NextResponse.json({
-        config: {
-          organization: { name: "", role: "" },
-          goals: [],
-          context: "",
-        },
-        exists: false,
-      });
+    for (const { path, source } of paths) {
+      if (!existsSync(path)) {
+        continue;
+      }
+
+      try {
+        const content = await readFile(path, "utf-8");
+        const config = parse(content) as GoalsConfig;
+
+        return NextResponse.json({
+          config,
+          raw: content,
+          source,
+          path,
+          isExample: source === "example",
+          allPaths: paths.map((p) => ({
+            ...p,
+            exists: existsSync(p.path),
+          })),
+        });
+      } catch {
+        continue;
+      }
     }
 
-    const content = await readFile(goalsPath, "utf-8");
-    const config = parse(content) as GoalsConfig;
-
-    return NextResponse.json({ config, exists: true, raw: content });
+    // No config found anywhere
+    return NextResponse.json({
+      config: {
+        organization: { name: "", role: "" },
+        goals: [],
+        context: "",
+      },
+      raw: "",
+      source: null,
+      path: null,
+      isExample: false,
+      allPaths: paths.map((p) => ({
+        ...p,
+        exists: existsSync(p.path),
+      })),
+    });
   } catch (error) {
     console.error("Failed to load goals:", error);
     return NextResponse.json(
@@ -87,9 +120,27 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { config, raw } = await request.json();
+    const { raw } = await request.json();
 
-    const goalsPath = getGoalsPath();
+    if (!raw || typeof raw !== "string") {
+      return NextResponse.json(
+        { error: "Raw YAML content is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate YAML syntax
+    try {
+      parse(raw);
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: `Invalid YAML: ${parseError instanceof Error ? parseError.message : "Parse error"}` },
+        { status: 400 }
+      );
+    }
+
+    // Always save to project-level config/goals.yaml (gitignored)
+    const goalsPath = getProjectGoalsPath();
     const configDir = dirname(goalsPath);
 
     // Ensure config directory exists
@@ -97,22 +148,13 @@ export async function PUT(request: NextRequest) {
       await mkdir(configDir, { recursive: true });
     }
 
-    // If raw YAML is provided, use it directly; otherwise stringify the config
-    let content: string;
-    if (raw && typeof raw === "string") {
-      content = raw;
-    } else if (config) {
-      content = stringify(config, { lineWidth: 0 });
-    } else {
-      return NextResponse.json(
-        { error: "Either config or raw YAML must be provided" },
-        { status: 400 }
-      );
-    }
+    await writeFile(goalsPath, raw, "utf-8");
 
-    await writeFile(goalsPath, content, "utf-8");
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      path: goalsPath,
+      source: "project",
+    });
   } catch (error) {
     console.error("Failed to save goals:", error);
     return NextResponse.json(

@@ -3,4 +3,14 @@ dist/
 .next/
 .DS_Store
 *.log
+
+# Environment files (use .env.example as template)
 .env
+.env.local
+.env*.local
+
+# Personal configuration (use *.example.yaml as templates)
+config/goals.yaml
+
+# TypeScript build info
+*.tsbuildinfo

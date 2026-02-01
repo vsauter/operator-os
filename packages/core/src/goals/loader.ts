@@ -1,11 +1,14 @@
 /**
  * Goals Loader
- * Loads organization goals from config/goals.yaml
+ * Loads organization goals from various locations in priority order:
+ * 1. ~/.operator/goals.yaml (user-level config)
+ * 2. config/goals.yaml (project-level, gitignored)
+ * 3. config/goals.example.yaml (template fallback)
  */
 
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { resolve, dirname } from "path";
+import { resolve, dirname, join } from "path";
 import { parse } from "yaml";
 
 export interface Goal {
@@ -28,22 +31,25 @@ export interface GoalsConfig {
   context?: string;
 }
 
+export interface GoalsLoadResult {
+  config: GoalsConfig;
+  source: "user" | "project" | "example";
+  path: string;
+}
+
 /**
- * Find the monorepo/project root by looking for config directory
+ * Find the monorepo/project root by looking for pnpm-workspace.yaml
  */
 function findProjectRoot(): string {
   let dir = process.cwd();
 
   while (true) {
-    // Check for config/goals.yaml or config directory
-    if (existsSync(resolve(dir, "config/goals.yaml"))) {
-      return dir;
-    }
-    if (existsSync(resolve(dir, "config"))) {
-      return dir;
-    }
     // Check for pnpm-workspace.yaml (monorepo root)
     if (existsSync(resolve(dir, "pnpm-workspace.yaml"))) {
+      return dir;
+    }
+    // Check for config directory as backup
+    if (existsSync(resolve(dir, "config")) && existsSync(resolve(dir, "connectors"))) {
       return dir;
     }
 
@@ -56,24 +62,65 @@ function findProjectRoot(): string {
 }
 
 /**
- * Load goals configuration from config/goals.yaml
+ * Get the user-level config directory (~/.operator/)
+ */
+function getUserConfigDir(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  return join(home, ".operator");
+}
+
+/**
+ * Get all possible paths for goals.yaml in priority order
+ */
+export function getGoalsPaths(): { path: string; source: "user" | "project" | "example" }[] {
+  const projectRoot = findProjectRoot();
+  const userConfigDir = getUserConfigDir();
+
+  return [
+    { path: join(userConfigDir, "goals.yaml"), source: "user" as const },
+    { path: resolve(projectRoot, "config/goals.yaml"), source: "project" as const },
+    { path: resolve(projectRoot, "config/goals.example.yaml"), source: "example" as const },
+  ];
+}
+
+/**
+ * Load goals configuration from the first available location
  */
 export async function loadGoals(): Promise<GoalsConfig | null> {
+  const result = await loadGoalsWithSource();
+  return result?.config ?? null;
+}
+
+/**
+ * Load goals configuration with information about where it was loaded from
+ */
+export async function loadGoalsWithSource(): Promise<GoalsLoadResult | null> {
+  const paths = getGoalsPaths();
+
+  for (const { path, source } of paths) {
+    if (!existsSync(path)) {
+      continue;
+    }
+
+    try {
+      const content = await readFile(path, "utf-8");
+      const config = parse(content) as GoalsConfig;
+      return { config, source, path };
+    } catch (error) {
+      console.warn(`Failed to load goals from ${path}:`, error);
+      continue;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get the path where project-level goals should be saved
+ */
+export function getProjectGoalsPath(): string {
   const projectRoot = findProjectRoot();
-  const goalsPath = resolve(projectRoot, "config/goals.yaml");
-
-  if (!existsSync(goalsPath)) {
-    return null;
-  }
-
-  try {
-    const content = await readFile(goalsPath, "utf-8");
-    const config = parse(content) as GoalsConfig;
-    return config;
-  } catch (error) {
-    console.warn("Failed to load goals.yaml:", error);
-    return null;
-  }
+  return resolve(projectRoot, "config/goals.yaml");
 }
 
 /**

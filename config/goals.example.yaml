@@ -1,0 +1,39 @@
+# Organization Goals Configuration
+# Copy this file to goals.yaml and customize for your organization.
+# goals.yaml is gitignored and won't be committed.
+#
+# These goals are automatically injected into all operator briefings
+# to provide unified context and priorities.
+
+organization:
+  name: "Your Company"
+  role: "Your Role (e.g., Sales Manager, Delivery Lead)"
+
+# Primary goals that drive decision-making
+goals:
+  - id: primary-target
+    description: "Your primary goal description"
+    metric: revenue  # Optional: what metric this tracks
+    target: 1000000  # Optional: numeric target
+    deadline: 2026-12-31  # Optional: target date
+    priority: high  # high, medium, or low
+
+  - id: secondary-goal
+    description: "A secondary goal"
+    priority: medium
+
+  - id: operational-goal
+    description: "An operational goal"
+    priority: low
+
+# Additional context injected into every briefing
+# This free-form text helps the AI understand your perspective
+context: |
+  Describe your role and what you care about most.
+
+  For example:
+  - What decisions do you need to make?
+  - What risks should be highlighted?
+  - What metrics matter most to you?
+
+  This context helps all operators generate more relevant briefings.

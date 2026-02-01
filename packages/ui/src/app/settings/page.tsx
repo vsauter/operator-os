@@ -47,12 +47,21 @@ interface GoalsConfig {
 }
 
 type Tab = "connectors" | "goals";
+type GoalsSource = "user" | "project" | "example" | null;
+
+interface GoalsPathInfo {
+  path: string;
+  source: GoalsSource;
+  exists: boolean;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("connectors");
   const [connectors, setConnectors] = useState<ConnectorInfo[]>([]);
   const [goalsYaml, setGoalsYaml] = useState("");
-  const [goalsExists, setGoalsExists] = useState(false);
+  const [goalsSource, setGoalsSource] = useState<GoalsSource>(null);
+  const [goalsPath, setGoalsPath] = useState<string | null>(null);
+  const [allGoalsPaths, setAllGoalsPaths] = useState<GoalsPathInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -78,7 +87,9 @@ export default function SettingsPage() {
       if (goalsRes.ok) {
         const data = await goalsRes.json();
         setGoalsYaml(data.raw || "");
-        setGoalsExists(data.exists || false);
+        setGoalsSource(data.source);
+        setGoalsPath(data.path);
+        setAllGoalsPaths(data.allPaths || []);
       }
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -97,18 +108,22 @@ export default function SettingsPage() {
         body: JSON.stringify({ raw: goalsYaml }),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        setSaveMessage({ type: "success", text: "Goals saved successfully!" });
-        setGoalsExists(true);
+        setSaveMessage({ type: "success", text: "Goals saved to config/goals.yaml" });
+        setGoalsSource("project");
+        setGoalsPath(data.path);
+        // Refresh to update allPaths
+        loadData();
       } else {
-        const data = await res.json();
         setSaveMessage({ type: "error", text: data.error || "Failed to save" });
       }
     } catch (error) {
       setSaveMessage({ type: "error", text: "Failed to save goals" });
     } finally {
       setSaving(false);
-      setTimeout(() => setSaveMessage(null), 3000);
+      setTimeout(() => setSaveMessage(null), 5000);
     }
   }
 
@@ -326,6 +341,23 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                {goalsSource && (
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-medium ${
+                      goalsSource === "user"
+                        ? "bg-blue-100 text-blue-700"
+                        : goalsSource === "project"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {goalsSource === "user"
+                      ? "User Config"
+                      : goalsSource === "project"
+                      ? "Project Config"
+                      : "Example Template"}
+                  </span>
+                )}
                 {saveMessage && (
                   <span
                     className={`text-sm ${
@@ -345,10 +377,20 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {!goalsExists && (
+            {goalsSource === "example" && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-yellow-800">
-                  No goals.yaml file exists yet. Edit the configuration below and save to create one.
+                  <strong>Using example template.</strong> Edit and save to create your own{" "}
+                  <code className="bg-yellow-100 px-1 rounded">config/goals.yaml</code> file.
+                  This file is gitignored and won&apos;t be committed.
+                </p>
+              </div>
+            )}
+
+            {!goalsSource && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800">
+                  No goals configuration found. Create one by editing the template below and saving.
                 </p>
               </div>
             )}
@@ -392,7 +434,7 @@ context: |
               <h3 className="text-sm font-medium text-gray-700 mb-2">Goals Schema</h3>
               <div className="text-xs text-gray-600 space-y-1">
                 <p><code className="bg-gray-200 px-1 rounded">organization.name</code> - Your company name</p>
-                <p><code className="bg-gray-200 px-1 rounded">organization.role</code> - Your role (e.g., "Delivery Manager")</p>
+                <p><code className="bg-gray-200 px-1 rounded">organization.role</code> - Your role (e.g., &quot;Delivery Manager&quot;)</p>
                 <p><code className="bg-gray-200 px-1 rounded">goals[].id</code> - Unique identifier for the goal</p>
                 <p><code className="bg-gray-200 px-1 rounded">goals[].description</code> - Goal description</p>
                 <p><code className="bg-gray-200 px-1 rounded">goals[].target</code> - Numeric target (optional)</p>
@@ -401,6 +443,43 @@ context: |
                 <p><code className="bg-gray-200 px-1 rounded">context</code> - Free-form text included in all briefings</p>
               </div>
             </div>
+
+            {allGoalsPaths.length > 0 && (
+              <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Config File Locations</h3>
+                <p className="text-xs text-gray-500 mb-3">
+                  Goals are loaded from the first file that exists (in priority order):
+                </p>
+                <div className="space-y-2">
+                  {allGoalsPaths.map((pathInfo, index) => (
+                    <div key={pathInfo.path} className="flex items-center gap-2 text-xs">
+                      <span className="text-gray-400 w-4">{index + 1}.</span>
+                      <code className="bg-gray-200 px-2 py-1 rounded flex-1 truncate">
+                        {pathInfo.path}
+                      </code>
+                      <span
+                        className={`px-2 py-0.5 rounded ${
+                          pathInfo.exists
+                            ? pathInfo.path === goalsPath
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-200 text-gray-600"
+                            : "bg-gray-100 text-gray-400"
+                        }`}
+                      >
+                        {pathInfo.exists
+                          ? pathInfo.path === goalsPath
+                            ? "Active"
+                            : "Exists"
+                          : "Not Found"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Saving creates/updates <code className="bg-gray-200 px-1 rounded">config/goals.yaml</code> (gitignored).
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
