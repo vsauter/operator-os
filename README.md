@@ -10,6 +10,18 @@ A unified platform for orchestrating AI-powered workflows across multiple data s
 - **Extensible connectors** - Support for both MCP (Model Context Protocol) and REST API integrations
 - **AI-powered synthesis** - Uses Claude to analyze context and generate actionable outputs
 
+## Screenshots
+
+### Operators Dashboard
+Create and run operators that combine multiple data sources into AI-powered briefings.
+
+![Operators Dashboard](docs/images/operators.png)
+
+### Connectors Settings
+View available connectors and their capabilities.
+
+![Connectors Settings](docs/images/connectors.png)
+
 ## Quick Start
 
 ```bash
