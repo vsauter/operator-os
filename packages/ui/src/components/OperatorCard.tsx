@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { parse } from "yaml";
 import ConfirmDialog from "./ConfirmDialog";
+import ConnectionTestModal from "./ConnectionTestModal";
 
 interface Task {
   name: string;
@@ -15,6 +17,18 @@ interface Operator {
   description?: string;
   sources: { id: string; name: string }[];
   tasks: Record<string, Task>;
+}
+
+interface FullSource {
+  id: string;
+  name: string;
+  connection: {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+  };
+  tool: string;
+  args?: Record<string, unknown>;
 }
 
 interface OperatorCardProps {
@@ -33,9 +47,29 @@ export default function OperatorCard({
   onDeleted,
 }: OperatorCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [fullSources, setFullSources] = useState<FullSource[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [loadingTest, setLoadingTest] = useState(false);
 
   const taskEntries = Object.entries(operator.tasks);
+
+  const handleOpenTestModal = async () => {
+    setLoadingTest(true);
+    try {
+      const res = await fetch(`/api/operators/${operator.id}`);
+      const data = await res.json();
+      if (data.yaml) {
+        const config = parse(data.yaml);
+        setFullSources(config.sources || []);
+        setShowTestModal(true);
+      }
+    } catch {
+      // Handle error silently
+    } finally {
+      setLoadingTest(false);
+    }
+  };
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -84,9 +118,18 @@ export default function OperatorCard({
           <p className="text-gray-600 text-sm mt-1">{operator.description}</p>
         )}
         <div className="mt-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
-            Sources
-          </p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">
+              Sources
+            </p>
+            <button
+              onClick={handleOpenTestModal}
+              disabled={loadingTest}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              {loadingTest ? "..." : "Test"}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1">
             {operator.sources.map((source) => (
               <span
@@ -131,6 +174,12 @@ export default function OperatorCard({
         confirmLabel="Delete"
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConnectionTestModal
+        open={showTestModal}
+        onClose={() => setShowTestModal(false)}
+        sources={fullSources}
       />
     </>
   );

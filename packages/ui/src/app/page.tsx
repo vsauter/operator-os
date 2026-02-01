@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import OperatorCard from "@/components/OperatorCard";
-import SourceStatus from "@/components/SourceStatus";
+import SourceStatusList from "@/components/SourceStatusList";
 import BriefingOutput from "@/components/BriefingOutput";
+import { SourceStatusProps } from "@/components/SourceStatus";
 
 interface Task {
   name: string;
@@ -19,18 +20,12 @@ interface Operator {
   tasks: Record<string, Task>;
 }
 
-interface SourceResult {
-  sourceId: string;
-  sourceName: string;
-  status: "pending" | "loading" | "success" | "error";
-  error?: string;
-}
-
 export default function Home() {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [sources, setSources] = useState<SourceResult[]>([]);
+  const [sources, setSources] = useState<SourceStatusProps[]>([]);
+  const [totalDurationMs, setTotalDurationMs] = useState<number | undefined>();
   const [briefing, setBriefing] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -52,12 +47,14 @@ export default function Home() {
     setBriefing("");
     setError("");
     setLoading(true);
+    setTotalDurationMs(undefined);
 
+    // Initialize all sources as loading
     setSources(
       operator.sources.map((s) => ({
-        sourceId: s.id,
-        sourceName: s.name,
-        status: "loading",
+        id: s.id,
+        name: s.name,
+        status: "loading" as const,
       }))
     );
 
@@ -74,18 +71,30 @@ export default function Home() {
         throw new Error(data.error || "Failed to run task");
       }
 
-      setSources(
-        data.sourceResults.map((s: { sourceId: string; sourceName: string; error?: string }) => ({
-          sourceId: s.sourceId,
-          sourceName: s.sourceName,
-          status: s.error ? "error" : "success",
-          error: s.error,
-        }))
-      );
+      // Update sources with results from API
+      if (data.sources) {
+        setSources(data.sources);
+      }
+      setTotalDurationMs(data.totalDurationMs);
 
-      setBriefing(data.briefing);
+      // Handle LLM error separately from source errors
+      if (data.error) {
+        setError(data.error);
+      }
+
+      if (data.briefing) {
+        setBriefing(data.briefing);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
+      // Mark all sources as error on catastrophic failure
+      setSources((prev) =>
+        prev.map((s) => ({
+          ...s,
+          status: "error" as const,
+          error: "Request failed",
+        }))
+      );
     } finally {
       setLoading(false);
     }
@@ -121,14 +130,10 @@ export default function Home() {
         )}
       </section>
 
-      {selectedOperator && (
+      {selectedOperator && sources.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold mb-4">Sources</h2>
-          <div className="space-y-2">
-            {sources.map((source) => (
-              <SourceStatus key={source.sourceId} source={source} />
-            ))}
-          </div>
+          <SourceStatusList sources={sources} totalDurationMs={totalDurationMs} />
         </section>
       )}
 

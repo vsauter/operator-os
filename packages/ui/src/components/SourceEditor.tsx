@@ -1,6 +1,7 @@
 "use client";
 
 import { OperatorSource } from "@/lib/operatorSchema";
+import TestConnectionButton from "./TestConnectionButton";
 
 interface SourceEditorProps {
   sources: OperatorSource[];
@@ -147,6 +148,16 @@ export default function SourceEditor({ sources, onChange }: SourceEditorProps) {
               placeholder="tool_name"
             />
           </div>
+
+          {source.connection.command && source.tool && (
+            <div className="pt-2 border-t border-gray-200">
+              <TestConnectionButton
+                connection={source.connection}
+                tool={source.tool}
+                args={source.args}
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>

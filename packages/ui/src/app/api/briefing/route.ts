@@ -22,7 +22,50 @@ interface RawConfig {
   briefing?: { prompt: string };
 }
 
+function countItems(data: unknown): number | undefined {
+  if (data === null || data === undefined) {
+    return undefined;
+  }
+  if (Array.isArray(data)) {
+    return data.length;
+  }
+  if (typeof data === "object") {
+    // Check for common patterns like { items: [...] } or { results: [...] }
+    const obj = data as Record<string, unknown>;
+    for (const key of ["items", "results", "data", "records", "entries"]) {
+      if (Array.isArray(obj[key])) {
+        return (obj[key] as unknown[]).length;
+      }
+    }
+    // Count top-level keys if it's a plain object
+    return Object.keys(obj).length;
+  }
+  return undefined;
+}
+
+function isEmptyData(data: unknown): boolean {
+  if (data === null || data === undefined) {
+    return true;
+  }
+  if (Array.isArray(data)) {
+    return data.length === 0;
+  }
+  if (typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    // Check for common patterns
+    for (const key of ["items", "results", "data", "records", "entries"]) {
+      if (Array.isArray(obj[key])) {
+        return (obj[key] as unknown[]).length === 0;
+      }
+    }
+    return Object.keys(obj).length === 0;
+  }
+  return false;
+}
+
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
   try {
     const { operatorId, taskId } = await request.json();
 
@@ -74,17 +117,83 @@ export async function POST(request: NextRequest) {
       prompt = config.briefing.prompt;
     }
 
+    // Track timing for each source
+    const sourceTimings: Map<string, { startTime: number; endTime?: number }> = new Map();
+
+    // Start timing for all sources
+    for (const source of config.sources) {
+      sourceTimings.set(source.id, { startTime: Date.now() });
+    }
+
     const contextResults = await gatherContext(config.sources);
 
-    const briefingResult = await generateBriefing(contextResults, prompt);
+    // Calculate end times (approximate - all finish around the same time with Promise.allSettled)
+    const contextEndTime = Date.now();
+
+    // Build source results with enhanced metadata
+    const sourceResults = contextResults.map((r) => {
+      const timing = sourceTimings.get(r.sourceId);
+      const durationMs = timing ? contextEndTime - timing.startTime : undefined;
+      const itemCount = r.error ? undefined : countItems(r.data);
+      const isEmpty = !r.error && isEmptyData(r.data);
+
+      let status: "success" | "error" | "warning";
+      if (r.error) {
+        status = "error";
+      } else if (isEmpty) {
+        status = "warning";
+      } else {
+        status = "success";
+      }
+
+      return {
+        id: r.sourceId,
+        name: r.sourceName,
+        status,
+        itemCount,
+        error: r.error,
+        durationMs,
+      };
+    });
+
+    // Try to generate the briefing - handle LLM errors separately
+    let briefingContent: string;
+    try {
+      const briefingResult = await generateBriefing(contextResults, prompt);
+      briefingContent = briefingResult.content;
+    } catch (llmError) {
+      const totalDurationMs = Date.now() - startTime;
+      const errorMessage = llmError instanceof Error ? llmError.message : "Unknown error";
+
+      // Check for common LLM provider errors
+      let userFriendlyError: string;
+      if (errorMessage.includes("apiKey") || errorMessage.includes("authToken") || errorMessage.includes("API key")) {
+        userFriendlyError = "LLM Error: Missing API key. Please set ANTHROPIC_API_KEY environment variable.";
+      } else if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+        userFriendlyError = "LLM Error: Rate limited. Please wait and try again.";
+      } else if (errorMessage.includes("insufficient") || errorMessage.includes("quota")) {
+        userFriendlyError = "LLM Error: API quota exceeded. Check your Anthropic account.";
+      } else {
+        userFriendlyError = `LLM Error: ${errorMessage}`;
+      }
+
+      console.error("Failed to generate briefing (LLM):", llmError);
+
+      // Return sources successfully gathered, but with LLM error
+      return NextResponse.json({
+        sources: sourceResults,
+        totalDurationMs,
+        error: userFriendlyError,
+        briefing: null,
+      });
+    }
+
+    const totalDurationMs = Date.now() - startTime;
 
     return NextResponse.json({
-      briefing: briefingResult.content,
-      sourceResults: contextResults.map((r) => ({
-        sourceId: r.sourceId,
-        sourceName: r.sourceName,
-        error: r.error,
-      })),
+      briefing: briefingContent,
+      sources: sourceResults,
+      totalDurationMs,
     });
   } catch (error) {
     console.error("Failed to generate briefing:", error);
