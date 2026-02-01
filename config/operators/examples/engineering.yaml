@@ -1,0 +1,28 @@
+id: engineering
+name: Engineering Operator
+description: Engineering tools for developers
+
+sources:
+  - id: linear
+    name: My Linear Tickets
+    connection:
+      command: npx
+      args: ["-y", "mcp-linear"]
+      env:
+        LINEAR_API_KEY: "$LINEAR_API_KEY"
+    tool: search_issues
+    args:
+      query: ""
+
+tasks:
+  briefing:
+    name: Daily Briefing
+    prompt: |
+      Create an engineering daily briefing:
+
+      1. IN PROGRESS - that are actively in progress for this coming week
+      2. BACKLOG - tickets that are not in progress
+
+      Be specific. Use ticket IDs and titles.
+    default: true
+
