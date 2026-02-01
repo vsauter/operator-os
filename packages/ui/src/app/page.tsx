@@ -16,7 +16,7 @@ interface Operator {
   id: string;
   name: string;
   description?: string;
-  sources: { id: string; name: string }[];
+  connectors: string[];
   tasks: Record<string, Task>;
 }
 
@@ -49,11 +49,11 @@ export default function Home() {
     setLoading(true);
     setTotalDurationMs(undefined);
 
-    // Initialize all sources as loading
+    // Initialize sources as loading (will be populated by API response)
     setSources(
-      operator.sources.map((s) => ({
-        id: s.id,
-        name: s.name,
+      operator.connectors.map((connector) => ({
+        id: connector.toLowerCase(),
+        name: connector,
         status: "loading" as const,
       }))
     );

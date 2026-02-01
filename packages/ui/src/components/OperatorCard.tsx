@@ -15,7 +15,7 @@ interface Operator {
   id: string;
   name: string;
   description?: string;
-  sources: { id: string; name: string }[];
+  connectors: string[];
   tasks: Record<string, Task>;
 }
 
@@ -131,12 +131,12 @@ export default function OperatorCard({
             </button>
           </div>
           <div className="flex flex-wrap gap-1">
-            {operator.sources.map((source) => (
+            {operator.connectors.map((connector) => (
               <span
-                key={source.id}
+                key={connector}
                 className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded"
               >
-                {source.name}
+                {connector}
               </span>
             ))}
           </div>

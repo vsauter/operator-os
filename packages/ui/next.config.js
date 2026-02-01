@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  devIndicators: false,
   transpilePackages: ["@operator/core"],
+  // Turbopack config (Next.js 16+)
+  turbopack: {
+    resolveAlias: {
+      // Resolve .js imports to .ts files for workspace packages
+    },
+  },
+  // Webpack config (fallback)
   webpack: (config) => {
     // Resolve .js imports to .ts files for workspace packages
     config.resolve.extensionAlias = {

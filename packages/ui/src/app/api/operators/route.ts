@@ -17,13 +17,40 @@ const createOperatorSchema = z.object({
     .max(MAX_FILE_SIZE, `YAML content too large (max ${MAX_FILE_SIZE / 1024}KB)`),
 });
 
+interface SourceConfig {
+  // Connector-based format
+  connector?: string;
+  fetch?: string;
+  // Legacy format
+  id?: string;
+  name?: string;
+}
+
 interface RawConfig {
   id: string;
   name: string;
   description?: string;
-  sources: { id: string; name: string }[];
+  sources: SourceConfig[];
   tasks?: Record<string, { name: string; prompt: string; default?: boolean }>;
   briefing?: { prompt: string };
+}
+
+function getSourceConnector(source: SourceConfig): string {
+  // Connector-based format
+  if (source.connector) {
+    return capitalize(source.connector);
+  }
+  // Legacy format - extract from id or name
+  return source.name || source.id || "Unknown";
+}
+
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function getUniqueConnectors(sources: SourceConfig[]): string[] {
+  const connectors = sources.map(getSourceConnector);
+  return [...new Set(connectors)];
 }
 
 export async function GET() {
@@ -58,10 +85,7 @@ export async function GET() {
           id: config.id,
           name: config.name,
           description: config.description,
-          sources: config.sources.map((s) => ({
-            id: s.id,
-            name: s.name,
-          })),
+          connectors: getUniqueConnectors(config.sources),
           tasks,
         };
       })
