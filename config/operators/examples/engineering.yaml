@@ -3,16 +3,11 @@ name: Engineering Operator
 description: Engineering tools for developers
 
 sources:
-  - id: linear
-    name: My Linear Tickets
-    connection:
-      command: npx
-      args: ["-y", "mcp-linear"]
-      env:
-        LINEAR_API_KEY: "$LINEAR_API_KEY"
-    tool: search_issues
-    args:
-      query: ""
+  # New connector format
+  - connector: linear
+    fetch: issues
+    params:
+      limit: 20
 
 tasks:
   briefing:
@@ -25,4 +20,3 @@ tasks:
 
       Be specific. Use ticket IDs and titles.
     default: true
-

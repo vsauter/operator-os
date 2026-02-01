@@ -1,5 +1,0 @@
-{
-  "/page": "app/page.js",
-  "/api/operators/route": "app/api/operators/route.js",
-  "/api/briefing/route": "app/api/briefing/route.js"
-}

@@ -3,6 +3,7 @@ name: Sales Operator
 description: Sales tools for reps
 
 sources:
+  # Legacy format (still works for backward compatibility)
   - id: notes
     name: My Notes
     connection:
@@ -12,6 +13,12 @@ sources:
     args:
       path: "/Users/vanessasauter/operator-os/test.txt"
 
+  # New connector format
+  - connector: hubspot
+    fetch: deals
+    params:
+      limit: 20
+
 tasks:
   briefing:
     name: Daily Briefing
@@ -19,10 +26,11 @@ tasks:
       Create a sales-focused daily briefing with:
 
       1. TODAY'S MEETINGS - List each meeting with relevant context
-      2. EMAILS NEEDING RESPONSE - Prioritize by urgency
-      3. FOLLOW-UPS - Based on meeting/email context
+      2. DEALS UPDATE - Pipeline status, deals closing soon
+      3. EMAILS NEEDING RESPONSE - Prioritize by urgency
+      4. FOLLOW-UPS - Based on meeting/email context and deal activity
 
-      Be specific. Use names and details from the data.
+      Be specific. Use names, deal amounts, and details from the data.
     default: true
 
   followup:
@@ -30,7 +38,7 @@ tasks:
     prompt: |
       Draft a follow-up email for my most important or urgent meeting/contact.
 
-      Based on the notes, identify who needs follow-up most urgently and write
+      Based on the notes and deal data, identify who needs follow-up most urgently and write
       a professional email that:
       - References our previous conversation
       - Provides any promised information
@@ -41,15 +49,26 @@ tasks:
   risk-alert:
     name: Risk Alert
     prompt: |
-      Analyze the notes and identify any accounts or deals at risk.
+      Analyze the notes and HubSpot deals to identify accounts at risk.
 
       Look for:
       - Deals with approaching deadlines
       - Missing follow-ups
       - Stalled conversations
       - Pricing or budget concerns
+      - Deals stuck in same stage
 
       For each risk, provide:
       - Account name and deal size
       - Risk description
       - Recommended action
+
+  pipeline:
+    name: Pipeline Review
+    prompt: |
+      Summarize the team's pipeline from HubSpot:
+
+      - Total value by stage
+      - Deals closing this week/month
+      - Deals at risk (no activity, stuck)
+      - What to prioritize this week
