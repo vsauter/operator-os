@@ -11,6 +11,7 @@ dist/
 
 # Personal configuration (use *.example.yaml as templates)
 config/goals.yaml
+config/operators/local/
 
 # TypeScript build info
 *.tsbuildinfo

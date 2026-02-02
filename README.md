@@ -193,6 +193,7 @@ fetches:
 | **HubSpot** | MCP | CRM - deals, contacts, companies, pipelines, owners |
 | **Gong** | MCP | Sales intelligence - calls, team activity |
 | **Linear** | MCP | Project management - issues, projects, teams |
+| **PostHog** | MCP | Product analytics - events, users, feature flags, cohorts |
 | **Pylon** | API | Customer support - issues, accounts |
 | **Filesystem** | MCP | Local file access |
 
@@ -219,6 +220,11 @@ GONG_API_URL=https://api.gong.io/v2   # or your regional URL
 
 # Linear
 LINEAR_API_KEY=lin_api_...
+
+# PostHog
+POSTHOG_API_KEY=phx_...
+POSTHOG_PROJECT_ID=12345
+POSTHOG_API_URL=https://app.posthog.com  # or https://eu.posthog.com for EU
 
 # Pylon
 PYLON_API_KEY=...

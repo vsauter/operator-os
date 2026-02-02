@@ -1,7 +1,12 @@
 #!/usr/bin/env node
+import { config } from "dotenv";
+import { resolve } from "path";
 import { Command } from "commander";
 import { runCommand } from "./commands/run.js";
 import { devCommand } from "./commands/dev.js";
+
+// Load .env.local from project root
+config({ path: resolve(process.cwd(), ".env.local") });
 
 const program = new Command();
 

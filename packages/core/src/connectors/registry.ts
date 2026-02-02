@@ -6,7 +6,7 @@
 import { readFile, readdir } from "fs/promises";
 import { resolve, join } from "path";
 import { parse } from "yaml";
-import type { ConnectorDefinition } from "./types.js";
+import type { ConnectorDefinition } from "./types";
 
 // Singleton registry instance
 let registryInstance: ConnectorRegistry | null = null;

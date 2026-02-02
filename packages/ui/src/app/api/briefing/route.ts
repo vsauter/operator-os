@@ -1,10 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from "fs/promises";
+import { readFile, access } from "fs/promises";
 import { parse } from "yaml";
 import { join } from "path";
 import { gatherContext, generateBriefing } from "@operator/core";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { briefingRequestSchema, validateRequest } from "@/lib/validation";
+
+async function findOperatorPath(operatorId: string): Promise<string> {
+  const baseDir = join(process.cwd(), "..", "..", "config", "operators");
+  const locations = [
+    join(baseDir, "local", `${operatorId}.yaml`),
+    join(baseDir, "examples", `${operatorId}.yaml`),
+  ];
+
+  for (const path of locations) {
+    try {
+      await access(path);
+      return path;
+    } catch {
+      continue;
+    }
+  }
+
+  throw new Error(`Operator not found: ${operatorId}`);
+}
 
 interface RawConfig {
   id: string;
@@ -106,16 +125,7 @@ export async function POST(request: NextRequest) {
 
     const { operatorId, taskId } = validation.data;
 
-    const operatorPath = join(
-      process.cwd(),
-      "..",
-      "..",
-      "config",
-      "operators",
-      "examples",
-      `${operatorId}.yaml`
-    );
-
+    const operatorPath = await findOperatorPath(operatorId);
     const content = await readFile(operatorPath, "utf-8");
     const config = parse(content) as RawConfig;
 

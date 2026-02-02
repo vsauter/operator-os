@@ -1,8 +1,8 @@
 import { readFile } from "fs/promises";
 import { parse } from "yaml";
 import { resolve } from "path";
-import type { OperatorConfig, Task } from "../types.js";
-import type { OperatorSource, LegacySource, ConnectorSource } from "../connectors/types.js";
+import type { OperatorConfig, Task } from "../types";
+import type { OperatorSource, LegacySource, ConnectorSource } from "../connectors/types";
 
 interface RawOperatorConfig {
   id: string;
@@ -60,6 +60,7 @@ export async function loadOperator(nameOrPath: string): Promise<OperatorConfig> 
     filePath = resolve(nameOrPath);
   } else {
     const locations = [
+      `./config/operators/local/${nameOrPath}.yaml`,
       `./config/operators/examples/${nameOrPath}.yaml`,
       `./config/operators/${nameOrPath}.yaml`,
       `~/.operator/operators/${nameOrPath}.yaml`,

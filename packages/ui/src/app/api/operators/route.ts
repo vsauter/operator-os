@@ -53,15 +53,14 @@ function getUniqueConnectors(sources: SourceConfig[]): string[] {
   return [...new Set(connectors)];
 }
 
-export async function GET() {
+async function loadOperatorsFromDir(dir: string) {
   try {
-    const operatorsDir = join(process.cwd(), "..", "..", "config", "operators", "examples");
-    const files = await readdir(operatorsDir);
+    const files = await readdir(dir);
     const yamlFiles = files.filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
 
-    const operators = await Promise.all(
+    return Promise.all(
       yamlFiles.map(async (file) => {
-        const content = await readFile(join(operatorsDir, file), "utf-8");
+        const content = await readFile(join(dir, file), "utf-8");
         const config = parse(content) as RawConfig;
 
         // Handle backward compatibility
@@ -90,6 +89,31 @@ export async function GET() {
         };
       })
     );
+  } catch {
+    return [];
+  }
+}
+
+export async function GET() {
+  try {
+    const baseDir = join(process.cwd(), "..", "..", "config", "operators");
+
+    // Load from both local (personal) and examples directories
+    const [localOperators, exampleOperators] = await Promise.all([
+      loadOperatorsFromDir(join(baseDir, "local")),
+      loadOperatorsFromDir(join(baseDir, "examples")),
+    ]);
+
+    // Local operators take precedence (appear first, can override examples by id)
+    const seenIds = new Set<string>();
+    const operators = [];
+
+    for (const op of [...localOperators, ...exampleOperators]) {
+      if (!seenIds.has(op.id)) {
+        seenIds.add(op.id);
+        operators.push(op);
+      }
+    }
 
     return NextResponse.json({ operators });
   } catch (error) {

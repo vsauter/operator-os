@@ -4,9 +4,7 @@ const nextConfig = {
   transpilePackages: ["@operator/core"],
   // Turbopack config (Next.js 16+)
   turbopack: {
-    resolveAlias: {
-      // Resolve .js imports to .ts files for workspace packages
-    },
+    resolveExtensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
   },
   // Webpack config (fallback)
   webpack: (config) => {

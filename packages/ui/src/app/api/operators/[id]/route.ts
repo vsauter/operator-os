@@ -6,7 +6,11 @@ import { validateOperator } from "@/lib/operatorSchema";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { z } from "zod";
 
-const OPERATORS_DIR = join(process.cwd(), "..", "..", "config", "operators", "examples");
+const BASE_OPERATORS_DIR = join(process.cwd(), "..", "..", "config", "operators");
+const OPERATORS_DIRS = [
+  join(BASE_OPERATORS_DIR, "local"),
+  join(BASE_OPERATORS_DIR, "examples"),
+];
 
 // Maximum file size for operator YAML (100KB)
 const MAX_FILE_SIZE = 100 * 1024;
@@ -23,13 +27,21 @@ const updateOperatorSchema = z.object({
 });
 
 async function findOperatorFile(id: string): Promise<string | null> {
-  const files = await readdir(OPERATORS_DIR);
-  for (const file of files) {
-    if (!file.endsWith(".yaml") && !file.endsWith(".yml")) continue;
-    const content = await readFile(join(OPERATORS_DIR, file), "utf-8");
-    const config = parse(content);
-    if (config.id === id) {
-      return join(OPERATORS_DIR, file);
+  for (const dir of OPERATORS_DIRS) {
+    try {
+      const files = await readdir(dir);
+      for (const file of files) {
+        if (!file.endsWith(".yaml") && !file.endsWith(".yml")) continue;
+        const filePath = join(dir, file);
+        const content = await readFile(filePath, "utf-8");
+        const config = parse(content);
+        if (config.id === id) {
+          return filePath;
+        }
+      }
+    } catch {
+      // Directory doesn't exist, continue to next
+      continue;
     }
   }
   return null;

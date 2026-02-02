@@ -1,0 +1,115 @@
+id: posthog
+name: PostHog
+type: mcp
+description: PostHog analytics connector for events, users, and product insights
+
+mcp:
+  command: npx
+  args: ["tsx", "packages/connectors/src/posthog/index.ts"]
+  env:
+    POSTHOG_API_KEY: "{{credentials.apiKey}}"
+    POSTHOG_PROJECT_ID: "{{credentials.projectId}}"
+    POSTHOG_API_URL: "{{credentials.apiUrl}}"
+
+fetches:
+  # Events
+  recent_events:
+    tool: get_recent_events
+    description: "Get recent events from PostHog"
+    params:
+      event:
+        type: string
+        description: "Filter by event name"
+      limit:
+        type: number
+        default: 100
+        description: "Maximum number of events to return"
+
+  event_definitions:
+    tool: get_event_definitions
+    description: "Get all tracked event types and their volumes"
+
+  # Users/Persons
+  persons:
+    tool: get_persons
+    description: "Get users/persons from PostHog"
+    params:
+      search:
+        type: string
+        description: "Search query for persons"
+      limit:
+        type: number
+        default: 20
+
+  active_users:
+    tool: get_active_users
+    description: "Get active users count and activity"
+    params:
+      days:
+        type: number
+        default: 30
+        description: "Number of days to analyze"
+
+  user_activity:
+    tool: get_user_activity
+    description: "Get activity timeline for a specific user"
+    params:
+      distinct_id:
+        type: string
+        required: true
+        description: "User's distinct ID"
+      limit:
+        type: number
+        default: 50
+
+  # Analytics
+  event_counts:
+    tool: get_event_counts
+    description: "Get event counts by type"
+    params:
+      days:
+        type: number
+        default: 30
+        description: "Number of days to analyze"
+
+  hogql_query:
+    tool: run_hogql_query
+    description: "Run a HogQL query for custom analytics"
+    params:
+      query:
+        type: string
+        required: true
+        description: "HogQL query to execute"
+
+  # Feature Flags & Cohorts
+  feature_flags:
+    tool: get_feature_flags
+    description: "Get all feature flags and their status"
+
+  cohorts:
+    tool: get_cohorts
+    description: "Get all cohorts"
+
+  # Insights
+  insights:
+    tool: get_insights
+    description: "Get saved insights/dashboards"
+    params:
+      limit:
+        type: number
+        default: 20
+
+auth:
+  type: token
+  fields:
+    apiKey:
+      label: "Personal API Key"
+      type: password
+      description: "PostHog Personal API Key (starts with phx_)"
+    projectId:
+      label: "Project ID"
+      description: "Your PostHog project ID (number)"
+    apiUrl:
+      label: "API URL"
+      default: "https://app.posthog.com"
+      description: "PostHog API URL (use https://eu.posthog.com for EU)"

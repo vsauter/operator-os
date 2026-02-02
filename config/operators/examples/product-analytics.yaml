@@ -1,0 +1,65 @@
+# config/operators/examples/product-analytics.yaml
+# Example operator showing PostHog analytics integration
+
+id: product-analytics
+name: Product Analytics
+description: Product analytics briefing with user activity and feature adoption
+
+sources:
+  # Get event counts to understand usage patterns
+  - connector: posthog
+    fetch: event_counts
+    params:
+      days: 7
+
+  # Get active users
+  - connector: posthog
+    fetch: active_users
+    params:
+      days: 7
+
+  # Get feature flag status
+  - connector: posthog
+    fetch: feature_flags
+
+  # Get all tracked events
+  - connector: posthog
+    fetch: event_definitions
+
+tasks:
+  weekly-summary:
+    name: Weekly Summary
+    prompt: |
+      Create a weekly product analytics summary based on the PostHog data:
+
+      1. USAGE OVERVIEW
+         - Total events and unique users this week
+         - Most common events and their volumes
+         - Any notable changes in activity
+
+      2. USER ENGAGEMENT
+         - Top active users by event count
+         - User activity patterns
+
+      3. FEATURE FLAGS
+         - Currently active feature flags
+         - Any flags that should be reviewed
+
+      4. RECOMMENDATIONS
+         - Areas needing attention
+         - Suggested focus for next week
+
+      Be specific with numbers and percentages where available.
+    default: true
+
+  user-health:
+    name: User Health Check
+    prompt: |
+      Analyze user health metrics from PostHog:
+
+      1. ACTIVE USERS - How many users are active? Is this healthy?
+      2. ENGAGEMENT DISTRIBUTION - Are users evenly engaged or is activity concentrated?
+      3. AT-RISK USERS - Any signs of user churn based on activity patterns?
+      4. GROWTH SIGNALS - Any positive indicators?
+
+      Focus on actionable insights.

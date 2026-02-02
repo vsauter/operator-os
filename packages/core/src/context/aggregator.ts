@@ -1,6 +1,6 @@
-import { createClient, callTool, closeClient } from "../mcp/client.js";
-import type { ContextSource, ContextResult } from "../types.js";
-import type { OperatorSource, LegacySource } from "../connectors/types.js";
+import { createClient, callTool, closeClient } from "../mcp/client";
+import type { ContextSource, ContextResult } from "../types";
+import type { OperatorSource, LegacySource } from "../connectors/types";
 import {
   isConnectorSource,
   isLegacySource,
@@ -8,7 +8,7 @@ import {
   resolveSource,
   executeMcpFetch,
   executeApiFetch,
-} from "../connectors/index.js";
+} from "../connectors/index";
 
 /**
  * Execute a legacy source (backward compatibility)
