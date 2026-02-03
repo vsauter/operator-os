@@ -235,10 +235,20 @@ export async function POST(request: NextRequest) {
 
     const totalDurationMs = Date.now() - startTime;
 
+    // Build chat context from successful sources
+    const chatContext = contextResults
+      .filter((r) => !r.error)
+      .map((r) => ({
+        sourceName: r.sourceName,
+        data: r.data,
+      }));
+
     return NextResponse.json({
       briefing: briefingContent,
       sources: sourceResults,
       totalDurationMs,
+      chatContext,
+      taskPrompt: prompt,
     });
   } catch (error) {
     console.error("Failed to generate briefing:", error);

@@ -18,3 +18,7 @@ export type { Goal, GoalsConfig, OrganizationConfig, GoalsLoadResult } from "./g
 
 // Connector registry exports
 export * from "./connectors/index";
+
+// Chat exports
+export { createChatSession, chat } from "./chat/session";
+export type { ChatSession, ChatMessage } from "./chat/session";

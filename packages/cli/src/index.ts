@@ -22,6 +22,7 @@ program
   .argument("[task]", "Task to run (defaults to default task)")
   .option("-v, --verbose", "Show detailed output")
   .option("-l, --list", "List available tasks")
+  .option("-c, --chat", "Enter interactive chat mode after running")
   .action(runCommand);
 
 program

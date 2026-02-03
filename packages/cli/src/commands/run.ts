@@ -1,9 +1,63 @@
-import { loadOperator, getDefaultTask, getTask, gatherContext, generateBriefing } from "@operator/core";
+import * as readline from "readline";
+import {
+  loadOperator,
+  getDefaultTask,
+  getTask,
+  gatherContext,
+  generateBriefing,
+  createChatSession,
+  chat,
+  type ChatSession,
+} from "@operator/core";
+
+async function startChatMode(session: ChatSession): Promise<void> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  console.log("\n───────────────────────────────────────────────────────────────");
+  console.log("💬 Chat mode active. Ask follow-up questions about the briefing.");
+  console.log("   Type 'exit' or press Ctrl+C to quit.\n");
+
+  const askQuestion = (): void => {
+    rl.question("You: ", async (input) => {
+      const trimmed = input.trim();
+
+      if (!trimmed) {
+        askQuestion();
+        return;
+      }
+
+      if (trimmed.toLowerCase() === "exit" || trimmed.toLowerCase() === "quit") {
+        console.log("\nGoodbye!");
+        rl.close();
+        return;
+      }
+
+      try {
+        console.log("\nThinking...\n");
+        const response = await chat(session, trimmed);
+        console.log(`Assistant: ${response}\n`);
+      } catch (error) {
+        console.error("Error:", error instanceof Error ? error.message : error);
+      }
+
+      askQuestion();
+    });
+  };
+
+  rl.on("close", () => {
+    process.exit(0);
+  });
+
+  askQuestion();
+}
 
 export async function runCommand(
   operator: string,
   taskId: string | undefined,
-  options: { verbose?: boolean; list?: boolean }
+  options: { verbose?: boolean; list?: boolean; chat?: boolean }
 ) {
   const config = await loadOperator(operator);
 
@@ -64,4 +118,10 @@ export async function runCommand(
   const briefing = await generateBriefing(context, task.prompt);
 
   console.log(briefing.content);
+
+  // Enter chat mode if requested
+  if (options.chat) {
+    const session = createChatSession(context, briefing.content, task.prompt);
+    await startChatMode(session);
+  }
 }

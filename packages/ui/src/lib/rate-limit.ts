@@ -125,6 +125,13 @@ export const RATE_LIMITS = {
     limit: 100,
     windowMs: 60 * 1000,
   },
+
+  // Chat messages (LLM calls)
+  // 30 messages per minute per IP
+  chat: {
+    limit: 30,
+    windowMs: 60 * 1000,
+  },
 } as const;
 
 /**

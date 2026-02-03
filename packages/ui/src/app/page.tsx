@@ -5,7 +5,17 @@ import Link from "next/link";
 import OperatorCard from "@/components/OperatorCard";
 import SourceStatusList from "@/components/SourceStatusList";
 import BriefingOutput from "@/components/BriefingOutput";
+import ChatPanel from "@/components/ChatPanel";
 import { SourceStatusProps } from "@/components/SourceStatus";
+
+interface ChatContext {
+  briefing: string;
+  taskPrompt: string;
+  sources: Array<{
+    sourceName: string;
+    data: unknown;
+  }>;
+}
 
 interface Task {
   name: string;
@@ -27,6 +37,7 @@ export default function Home() {
   const [sources, setSources] = useState<SourceStatusProps[]>([]);
   const [totalDurationMs, setTotalDurationMs] = useState<number | undefined>();
   const [briefing, setBriefing] = useState<string>("");
+  const [chatContext, setChatContext] = useState<ChatContext | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
 
@@ -45,6 +56,7 @@ export default function Home() {
     setSelectedOperator(operator);
     setSelectedTaskId(taskId);
     setBriefing("");
+    setChatContext(null);
     setError("");
     setLoading(true);
     setTotalDurationMs(undefined);
@@ -84,6 +96,14 @@ export default function Home() {
 
       if (data.briefing) {
         setBriefing(data.briefing);
+        // Set up chat context if available
+        if (data.chatContext && data.taskPrompt) {
+          setChatContext({
+            briefing: data.briefing,
+            taskPrompt: data.taskPrompt,
+            sources: data.chatContext,
+          });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -147,6 +167,13 @@ export default function Home() {
         <section>
           <h2 className="text-lg font-semibold mb-4">Output</h2>
           <BriefingOutput content={briefing} />
+        </section>
+      )}
+
+      {chatContext && (
+        <section>
+          <h2 className="text-lg font-semibold mb-4">Chat</h2>
+          <ChatPanel context={chatContext} />
         </section>
       )}
     </div>
