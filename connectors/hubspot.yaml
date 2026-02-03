@@ -120,6 +120,25 @@ fetches:
         type: number
         default: 20
 
+  search_deals_with_owners:
+    tool: search_deals_with_owners
+    description: "Search deals by name with owner names resolved (includes AE and SE names)"
+    params:
+      query:
+        type: string
+        required: true
+      limit:
+        type: number
+        default: 20
+
+  company_deals:
+    tool: get_company_deals
+    description: "Get all deals for a company by name (finds company first, then gets associated deals with owner names)"
+    params:
+      company_name:
+        type: string
+        required: true
+
   # Owners & Pipelines
   owners:
     tool: get_owners

@@ -123,6 +123,23 @@ export const toolDefinitions = {
     },
   },
 
+  search_deals_with_owners: {
+    description:
+      "Search for deals in HubSpot by name with owner names resolved. Returns matching deals including AE and SE names.",
+    schema: {
+      query: z.string().describe("Search query (deal name)"),
+      limit: z.number().default(20).describe("Maximum results (default: 20)"),
+    },
+  },
+
+  get_company_deals: {
+    description:
+      "Get all deals associated with a company by searching for the company name first, then retrieving its deals. More reliable than searching deals by name. Includes owner names.",
+    schema: {
+      company_name: z.string().describe("Company name to search for"),
+    },
+  },
+
   get_owners: {
     description:
       "Get all HubSpot owners (sales reps). Returns owner details including name and email.",
@@ -487,6 +504,72 @@ export function createToolHandlers(client: HubSpotClient) {
           },
         ],
       };
+    },
+
+    search_deals_with_owners: async (args: { query: string; limit?: number }) => {
+      const deals = await client.searchDealsWithOwners(args.query, args.limit || 20);
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                query: args.query,
+                count: deals.length,
+                deals: deals.map(formatEnrichedDeal),
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    },
+
+    get_company_deals: async (args: { company_name: string }) => {
+      try {
+        const result = await client.searchCompanyDealsWithOwners(args.company_name);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  company_name: args.company_name,
+                  company_found: result.company ? {
+                    id: result.company.id,
+                    name: result.company.properties.name,
+                    domain: result.company.properties.domain,
+                  } : null,
+                  deals_count: result.deals.length,
+                  deals: result.deals.map(formatEnrichedDeal),
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  company_name: args.company_name,
+                  error: error instanceof Error ? error.message : String(error),
+                  note: "Failed to retrieve company deals. The company may not have any associated deals, or there may be an API permission issue.",
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
     },
 
     get_owners: async () => {

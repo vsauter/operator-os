@@ -120,6 +120,20 @@ export function createHubSpotServer(options?: {
   );
 
   server.tool(
+    "search_deals_with_owners",
+    toolDefinitions.search_deals_with_owners.description,
+    toolDefinitions.search_deals_with_owners.schema,
+    handlers.search_deals_with_owners
+  );
+
+  server.tool(
+    "get_company_deals",
+    toolDefinitions.get_company_deals.description,
+    toolDefinitions.get_company_deals.schema,
+    handlers.get_company_deals
+  );
+
+  server.tool(
     "get_owners",
     toolDefinitions.get_owners.description,
     toolDefinitions.get_owners.schema,

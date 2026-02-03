@@ -36,9 +36,12 @@ async function executeLegacySource(source: LegacySource): Promise<ContextResult>
 
 /**
  * Gather context from all sources (supports both new connector and legacy formats)
+ * @param sources - Array of operator sources to fetch
+ * @param runtimeParams - Optional runtime parameters that override/merge with source params
  */
 export async function gatherContext(
-  sources: OperatorSource[]
+  sources: OperatorSource[],
+  runtimeParams?: Record<string, unknown>
 ): Promise<ContextResult[]> {
   // Initialize the connector registry
   await getRegistry().load();
@@ -46,8 +49,8 @@ export async function gatherContext(
   const results = await Promise.allSettled(
     sources.map(async (source) => {
       if (isConnectorSource(source)) {
-        // New connector format
-        const context = await resolveSource(source);
+        // New connector format - pass runtime params
+        const context = await resolveSource(source, runtimeParams);
 
         if (context.connector.type === "mcp") {
           return executeMcpFetch(context);

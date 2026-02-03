@@ -53,15 +53,33 @@ export function resolveCredentials(
 }
 
 /**
- * Resolve a template string with credentials and params
- * Supports: {{credentials.field}}, {{params.field}}
+ * Resolve a template string with credentials, params, and dynamic values
+ * Supports: {{credentials.field}}, {{params.field}}, {{date.today}}, {{date.daysAgo.N}}
  */
 export function resolveTemplate(
   template: string,
   credentials: ResolvedCredentials,
   params: Record<string, unknown>
 ): string {
-  return template.replace(/\{\{(\w+)\.(\w+)\}\}/g, (match, scope, field) => {
+  // First handle date templates: {{date.today}}, {{date.daysAgo.30}}
+  let result = template.replace(/\{\{date\.(\w+)(?:\.(\d+))?\}\}/g, (match, type, days) => {
+    const now = new Date();
+    if (type === "today") {
+      return now.toISOString();
+    }
+    if (type === "daysAgo" && days) {
+      const pastDate = new Date(now.getTime() - parseInt(days) * 24 * 60 * 60 * 1000);
+      return pastDate.toISOString();
+    }
+    if (type === "startOfDay") {
+      now.setHours(0, 0, 0, 0);
+      return now.toISOString();
+    }
+    return match;
+  });
+
+  // Then handle credentials and params
+  result = result.replace(/\{\{(\w+)\.(\w+)\}\}/g, (match, scope, field) => {
     if (scope === "credentials") {
       return credentials[field] ?? match;
     }
@@ -71,6 +89,8 @@ export function resolveTemplate(
     }
     return match;
   });
+
+  return result;
 }
 
 /**
@@ -150,9 +170,12 @@ export function validateParams(
 
 /**
  * Resolve a connector source into an execution context
+ * @param source - The connector source configuration
+ * @param runtimeParams - Optional runtime parameters that override source params
  */
 export async function resolveSource(
-  source: ConnectorSource
+  source: ConnectorSource,
+  runtimeParams?: Record<string, unknown>
 ): Promise<ExecutionContext> {
   const registry = getRegistry();
 
@@ -177,8 +200,16 @@ export async function resolveSource(
   // Resolve credentials
   const credentials = resolveCredentials(connector);
 
-  // Merge params with defaults
-  const params = mergeParams(fetch, source.params);
+  // Merge params: defaults -> source params -> runtime params
+  let params = mergeParams(fetch, source.params);
+  if (runtimeParams) {
+    params = { ...params, ...runtimeParams };
+  }
+
+  // Resolve {{params.x}} templates in merged params using runtime params
+  if (runtimeParams) {
+    params = resolveTemplates(params, {}, runtimeParams);
+  }
 
   // Validate params
   const errors = validateParams(fetch, params);

@@ -166,6 +166,64 @@ export class HubSpotClient {
     return response.results || [];
   }
 
+  async getCompanyDeals(companyId: string): Promise<HubSpotDeal[]> {
+    // Get deal IDs associated with the company
+    const assocResponse = await this.request<{
+      results: Array<{ id: string; type: string }>;
+    }>(`/crm/v3/objects/companies/${companyId}/associations/deals`);
+
+    const dealIds = assocResponse.results?.map((r) => r.id) || [];
+    if (dealIds.length === 0) {
+      return [];
+    }
+
+    // Fetch deal details for each ID
+    const properties = [
+      "dealname", "amount", "dealstage", "pipeline", "closedate",
+      "createdate", "hubspot_owner_id", "solutions_engineer",
+      "hs_deal_stage_probability", "product", "hs_next_step"
+    ].join(",");
+
+    const deals: HubSpotDeal[] = [];
+    for (const dealId of dealIds) {
+      try {
+        const deal = await this.request<HubSpotDeal>(
+          `/crm/v3/objects/deals/${dealId}?properties=${properties}`
+        );
+        deals.push(deal);
+      } catch (error) {
+        console.error(`Failed to fetch deal ${dealId}:`, error);
+      }
+    }
+
+    return deals;
+  }
+
+  async getCompanyDealsWithOwners(companyId: string): Promise<EnrichedHubSpotDeal[]> {
+    await this.getOwners();
+    const deals = await this.getCompanyDeals(companyId);
+    return Promise.all(deals.map((deal) => this.enrichDealWithOwners(deal)));
+  }
+
+  async searchCompanyDealsWithOwners(companyName: string): Promise<{
+    company: HubSpotCompany | null;
+    deals: EnrichedHubSpotDeal[];
+  }> {
+    // First, find the company
+    const companies = await this.searchCompanies(companyName, 5);
+    if (companies.length === 0) {
+      return { company: null, deals: [] };
+    }
+
+    // Use the first matching company
+    const company = companies[0];
+
+    // Get deals for that company with owner names
+    const deals = await this.getCompanyDealsWithOwners(company.id);
+
+    return { company, deals };
+  }
+
   // ==================== DEALS ====================
 
   async getDeals(limit: number = 100): Promise<HubSpotDeal[]> {

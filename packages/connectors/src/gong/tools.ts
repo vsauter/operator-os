@@ -54,6 +54,7 @@ export const toolDefinitions = {
     schema: {
       query: z.string().describe("Search query (participant name or keyword)"),
       days_back: z.number().default(30).describe("Number of days to search"),
+      limit: z.number().default(20).describe("Maximum number of results to return"),
     },
   },
 
@@ -247,9 +248,10 @@ export function createToolHandlers(client: GongClient) {
       };
     },
 
-    search_calls: async (args: { query: string; days_back?: number }) => {
+    search_calls: async (args: { query: string; days_back?: number; limit?: number }) => {
       const calls = await client.getRecentCalls(args.days_back || 30);
       const query = args.query.toLowerCase();
+      const limit = args.limit || 15; // Default limit to prevent token overflow
 
       const matchingCalls = calls.filter((call) => {
         const titleMatch = call.title?.toLowerCase().includes(query);
@@ -261,6 +263,9 @@ export function createToolHandlers(client: GongClient) {
         return titleMatch || partyMatch;
       });
 
+      // Limit results to prevent token overflow
+      const limitedCalls = matchingCalls.slice(0, limit);
+
       return {
         content: [
           {
@@ -268,8 +273,9 @@ export function createToolHandlers(client: GongClient) {
             text: JSON.stringify(
               {
                 query: args.query,
-                count: matchingCalls.length,
-                calls: matchingCalls.map(formatCall),
+                total_matches: matchingCalls.length,
+                returned: limitedCalls.length,
+                calls: limitedCalls.map(formatCall),
               },
               null,
               2

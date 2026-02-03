@@ -57,8 +57,9 @@ async function startChatMode(session: ChatSession): Promise<void> {
 export async function runCommand(
   operator: string,
   taskId: string | undefined,
-  options: { verbose?: boolean; list?: boolean; chat?: boolean }
+  options: { verbose?: boolean; list?: boolean; chat?: boolean; param?: Record<string, string> }
 ) {
+  const runtimeParams = options.param || {};
   const config = await loadOperator(operator);
 
   // List tasks mode
@@ -97,13 +98,16 @@ export async function runCommand(
   if (options.verbose) {
     console.log(`Loading operator: ${operator}`);
     console.log(`Running task: ${resolvedTaskId} (${task.name})`);
+    if (Object.keys(runtimeParams).length > 0) {
+      console.log(`Runtime params: ${JSON.stringify(runtimeParams)}`);
+    }
   }
 
   if (options.verbose) {
     console.log(`Fetching context from ${config.sources.length} sources...`);
   }
 
-  const context = await gatherContext(config.sources);
+  const context = await gatherContext(config.sources, runtimeParams);
 
   const errors = context.filter((c) => c.error);
   if (errors.length > 0 && options.verbose) {
@@ -115,13 +119,22 @@ export async function runCommand(
     console.log("Generating output...\n");
   }
 
-  const briefing = await generateBriefing(context, task.prompt);
+  // Resolve any {{params.x}} templates in the task prompt
+  let resolvedPrompt = task.prompt;
+  if (Object.keys(runtimeParams).length > 0) {
+    resolvedPrompt = task.prompt.replace(
+      /\{\{params\.(\w+)\}\}/g,
+      (match, key) => runtimeParams[key] ?? match
+    );
+  }
+
+  const briefing = await generateBriefing(context, resolvedPrompt);
 
   console.log(briefing.content);
 
   // Enter chat mode if requested
   if (options.chat) {
-    const session = createChatSession(context, briefing.content, task.prompt);
+    const session = createChatSession(context, briefing.content, resolvedPrompt);
     await startChatMode(session);
   }
 }

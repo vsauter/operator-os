@@ -56,25 +56,49 @@ export class GongClient {
 
   // ==================== Calls ====================
 
-  async getCalls(filters?: CallFilters): Promise<GongCall[]> {
-    const params = new URLSearchParams();
+  /**
+   * Fetch calls with pagination support
+   * @param filters - Optional filters for the query
+   * @param maxPages - Maximum number of pages to fetch (default: 10, ~1000 calls)
+   */
+  async getCalls(filters?: CallFilters, maxPages: number = 10): Promise<GongCall[]> {
+    const allCalls: GongCall[] = [];
+    let cursor: string | undefined;
+    let pageCount = 0;
 
-    if (filters?.fromDateTime) {
-      params.set("fromDateTime", filters.fromDateTime);
-    }
-    if (filters?.toDateTime) {
-      params.set("toDateTime", filters.toDateTime);
-    }
-    if (filters?.primaryUserIds) {
-      filters.primaryUserIds.forEach(id => params.append("primaryUserIds", id));
-    }
+    do {
+      const params = new URLSearchParams();
 
-    const queryString = params.toString();
-    const endpoint = queryString ? `/calls?${queryString}` : "/calls";
+      if (filters?.fromDateTime) {
+        params.set("fromDateTime", filters.fromDateTime);
+      }
+      if (filters?.toDateTime) {
+        params.set("toDateTime", filters.toDateTime);
+      }
+      if (filters?.primaryUserIds) {
+        filters.primaryUserIds.forEach(id => params.append("primaryUserIds", id));
+      }
+      if (cursor) {
+        params.set("cursor", cursor);
+      }
 
-    const response = await this.request<{ calls: GongCall[] }>(endpoint);
+      const queryString = params.toString();
+      const endpoint = queryString ? `/calls?${queryString}` : "/calls";
 
-    return response.calls || [];
+      const response = await this.request<{
+        calls: GongCall[];
+        records?: { cursor?: string };
+      }>(endpoint);
+
+      if (response.calls) {
+        allCalls.push(...response.calls);
+      }
+
+      cursor = response.records?.cursor;
+      pageCount++;
+    } while (cursor && pageCount < maxPages);
+
+    return allCalls;
   }
 
   async getRecentCalls(daysBack: number = 7): Promise<GongCall[]> {

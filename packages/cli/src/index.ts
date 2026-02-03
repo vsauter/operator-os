@@ -23,7 +23,17 @@ program
   .option("-v, --verbose", "Show detailed output")
   .option("-l, --list", "List available tasks")
   .option("-c, --chat", "Enter interactive chat mode after running")
+  .option("-p, --param <key=value>", "Set runtime parameter (can be used multiple times)", collectParams, {})
   .action(runCommand);
+
+// Helper to collect multiple --param options into an object
+function collectParams(value: string, previous: Record<string, string>): Record<string, string> {
+  const [key, ...rest] = value.split("=");
+  if (key && rest.length > 0) {
+    previous[key] = rest.join("="); // Rejoin in case value contains "="
+  }
+  return previous;
+}
 
 program
   .command("dev")
