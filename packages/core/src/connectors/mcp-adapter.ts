@@ -28,6 +28,9 @@ export async function executeMcpFetch(
 
   // Resolve environment variables with credentials
   const resolvedEnv: Record<string, string> = {};
+  if (process.env.VERBOSE) {
+    resolvedEnv.VERBOSE = "1";
+  }
   if (connector.mcp.env) {
     for (const [key, template] of Object.entries(connector.mcp.env)) {
       const resolved = resolveTemplate(template, credentials, params);

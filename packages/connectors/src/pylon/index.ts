@@ -78,6 +78,13 @@ export function createPylonServer(options?: {
   );
 
   server.tool(
+    "search_account_issues",
+    toolDefinitions.search_account_issues.description,
+    toolDefinitions.search_account_issues.schema,
+    handlers.search_account_issues
+  );
+
+  server.tool(
     "get_support_metrics",
     toolDefinitions.get_support_metrics.description,
     toolDefinitions.get_support_metrics.schema,
@@ -92,7 +99,7 @@ async function main() {
   const apiKey = process.env.PYLON_API_KEY;
   const apiUrl = process.env.PYLON_API_URL;
 
-  if (!apiKey) {
+  if (!apiKey && process.env.VERBOSE) {
     console.error("No PYLON_API_KEY found, using mock data for development");
   }
 

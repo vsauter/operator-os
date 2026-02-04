@@ -60,6 +60,9 @@ export async function runCommand(
   options: { verbose?: boolean; list?: boolean; chat?: boolean; param?: Record<string, string> }
 ) {
   const runtimeParams = options.param || {};
+  if (options.verbose) {
+    process.env.VERBOSE = "1";
+  }
   const config = await loadOperator(operator);
 
   // List tasks mode

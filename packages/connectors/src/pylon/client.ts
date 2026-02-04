@@ -5,7 +5,53 @@ import type {
   PaginatedResponse,
   IssueFilters,
   IssueState,
+  IssuePriority,
 } from "./types.js";
+
+// ==================== API Response Mapping ====================
+// The Pylon API returns a different shape than our internal types.
+// Key differences:
+//   - account/requester/assignee are { id: string } only (no name/email)
+//   - priority lives in custom_fields.priority.value (not top-level)
+//   - "medium" priority maps to "normal" in our type system
+//   - source field maps to our channel field
+//   - body_text doesn't exist; only body_html
+//   - POST /accounts/search and POST /issues/search ignore filters entirely
+
+const PRIORITY_MAP: Record<string, IssuePriority> = {
+  low: "low",
+  normal: "normal",
+  medium: "normal",
+  high: "high",
+  urgent: "urgent",
+};
+
+function mapRawIssue(raw: Record<string, unknown>): PylonIssue {
+  const account = raw.account as { id: string } | null | undefined;
+  const requester = raw.requester as { id: string } | null | undefined;
+  const assignee = raw.assignee as { id: string } | null | undefined;
+  const customFields = raw.custom_fields as Record<string, { value?: string; values?: string[] }> | undefined;
+  const rawPriority = customFields?.priority?.value;
+
+  return {
+    id: raw.id as string,
+    title: raw.title as string || "",
+    body_html: raw.body_html as string | undefined,
+    state: (raw.state as IssueState) || "new",
+    priority: rawPriority ? PRIORITY_MAP[rawPriority.toLowerCase()] : undefined,
+    issue_number: raw.number as number | undefined,
+    account_id: account?.id,
+    account: account ? { id: account.id, name: "" } : undefined,
+    requester_id: requester?.id,
+    requester: requester ? { id: requester.id, name: "", email: "" } : undefined,
+    assignee_id: assignee?.id,
+    assignee: assignee ? { id: assignee.id, name: "", email: "" } : undefined,
+    tags: (raw.tags as string[] | null) || undefined,
+    created_at: raw.created_at as string,
+    updated_at: (raw.latest_message_time as string) || (raw.created_at as string),
+    channel: raw.source as string | undefined,
+  };
+}
 
 export class PylonClient {
   private apiKey: string;
@@ -21,7 +67,8 @@ export class PylonClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    retries: number = 3
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
@@ -33,6 +80,14 @@ export class PylonClient {
         ...options.headers,
       },
     });
+
+    if (response.status === 429 && retries > 0) {
+      const retryAfter = parseInt(response.headers.get("retry-after") || "5", 10);
+      const backoffMultiplier = 4 - retries; // 1x, 2x, 3x
+      const delay = Math.max(retryAfter, 2) * 1000 * backoffMultiplier;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.request<T>(endpoint, options, retries - 1);
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -56,13 +111,13 @@ export class PylonClient {
       end_time: filters?.created_at?.end || now.toISOString(),
     });
 
-    const response = await this.request<PaginatedResponse<PylonIssue>>(
+    const response = await this.request<{ data: Record<string, unknown>[] }>(
       `/issues?${params}`
     );
 
-    let issues = response.data || [];
+    let issues = (response.data || []).map(mapRawIssue);
 
-    // Apply client-side filters since GET /issues has limited filtering
+    // Apply client-side filters
     if (filters?.state && filters.state.length > 0) {
       issues = issues.filter((i) => filters.state!.includes(i.state));
     }
@@ -90,26 +145,42 @@ export class PylonClient {
     filters: { field: string; operator: string; value: unknown }[],
     limit: number = 100
   ): Promise<PylonIssue[]> {
-    const response = await this.request<PaginatedResponse<PylonIssue>>(
+    // NOTE: Pylon's POST /issues/search ignores filters server-side.
+    // We fetch all issues and filter client-side.
+    const response = await this.request<{ data: Record<string, unknown>[] }>(
       "/issues/search",
       {
         method: "POST",
-        body: JSON.stringify({
-          filters,
-          limit,
-        }),
+        body: JSON.stringify({ filters, limit }),
       }
     );
 
-    return response.data || [];
+    let issues = (response.data || []).map(mapRawIssue);
+
+    // Apply filters client-side since API ignores them
+    for (const filter of filters) {
+      if (filter.field === "title" && filter.operator === "string_contains") {
+        const val = String(filter.value).toLowerCase();
+        issues = issues.filter((i) => i.title.toLowerCase().includes(val));
+      }
+      if (filter.field === "account_id" && filter.operator === "equals") {
+        issues = issues.filter((i) => i.account_id === filter.value);
+      }
+      if (filter.field === "account_id" && filter.operator === "in") {
+        const ids = filter.value as string[];
+        issues = issues.filter((i) => i.account_id && ids.includes(i.account_id));
+      }
+    }
+
+    return issues;
   }
 
   async getIssue(issueId: string): Promise<PylonIssue> {
-    return this.request<PylonIssue>(`/issues/${issueId}`);
+    const raw = await this.request<Record<string, unknown>>(`/issues/${issueId}`);
+    return mapRawIssue(raw);
   }
 
   async getOpenIssues(): Promise<PylonIssue[]> {
-    // Get issues that are not closed
     const openStates: IssueState[] = [
       "new",
       "waiting_on_you",
@@ -127,7 +198,6 @@ export class PylonClient {
   }
 
   async getIssuesWaitingOnTeam(): Promise<PylonIssue[]> {
-    // Issues waiting for your team to respond
     return this.getIssues({ state: ["waiting_on_you", "new"] });
   }
 
@@ -147,14 +217,21 @@ export class PylonClient {
   async searchAccounts(
     filters: { field: string; operator: string; value: unknown }[]
   ): Promise<PylonAccount[]> {
-    const response = await this.request<PaginatedResponse<PylonAccount>>(
-      "/accounts/search",
-      {
-        method: "POST",
-        body: JSON.stringify({ filters }),
+    // Pylon's POST /accounts/search ignores filters server-side.
+    // Fetch all accounts and filter client-side instead.
+    const allAccounts = await this.getAccounts(500);
+
+    let accounts = allAccounts;
+    for (const filter of filters) {
+      if (filter.field === "name" && filter.operator === "string_contains") {
+        const searchValue = String(filter.value).toLowerCase();
+        accounts = accounts.filter((a) =>
+          a.name.toLowerCase().includes(searchValue)
+        );
       }
-    );
-    return response.data || [];
+    }
+
+    return accounts;
   }
 
   async getAccountIssues(accountId: string): Promise<PylonIssue[]> {

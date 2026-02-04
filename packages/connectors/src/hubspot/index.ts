@@ -176,7 +176,7 @@ async function main() {
   const accessToken = process.env.HUBSPOT_ACCESS_TOKEN;
   const baseUrl = process.env.HUBSPOT_API_URL;
 
-  if (!accessToken) {
+  if (!accessToken && process.env.VERBOSE) {
     console.error(
       "No HUBSPOT_ACCESS_TOKEN found, using mock data for development"
     );

@@ -41,8 +41,7 @@ export function resolveCredentials(
 
     if (value) {
       credentials[fieldName] = value;
-    } else if (field.required !== false) {
-      // Only warn for required fields (default is required)
+    } else if (field.required !== false && process.env.VERBOSE) {
       console.warn(
         `Missing environment variable ${envVar} for connector ${connector.id}`
       );

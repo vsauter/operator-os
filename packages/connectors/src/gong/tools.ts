@@ -249,21 +249,76 @@ export function createToolHandlers(client: GongClient) {
     },
 
     search_calls: async (args: { query: string; days_back?: number; limit?: number }) => {
-      const calls = await client.getRecentCalls(args.days_back || 30);
+      const daysBack = args.days_back || 30;
+      const limit = args.limit || 20;
       const query = args.query.toLowerCase();
-      const limit = args.limit || 15; // Default limit to prevent token overflow
 
-      const matchingCalls = calls.filter((call) => {
+      // Two-pass search strategy:
+      // 1. Text match: find calls where title, party name, party email,
+      //    or CRM account name contains the query
+      // 2. Account match: extract CRM accountIds from text-matched calls,
+      //    then include ALL calls linked to those accounts
+      //
+      // This handles cases where calls are linked to an account via CRM
+      // context but don't have the company name in the title or party names.
+
+      // Fetch all calls across 30-day chunks
+      const allCalls: GongCall[] = [];
+      const chunkDays = 30;
+      for (let offset = 0; offset < daysBack; offset += chunkDays) {
+        const toDateTime = new Date(Date.now() - offset * 86400000).toISOString();
+        const chunkEnd = Math.min(offset + chunkDays, daysBack);
+        const fromDateTime = new Date(Date.now() - chunkEnd * 86400000).toISOString();
+
+        try {
+          const calls = await client.getCalls({ fromDateTime, toDateTime });
+          allCalls.push(...calls);
+        } catch {
+          // Skip chunks that fail (e.g., 404 for empty time ranges)
+          continue;
+        }
+      }
+
+      // Pass 1: Text match on title, party name, party email, or CRM account name
+      const textMatches = allCalls.filter((call) => {
         const titleMatch = call.title?.toLowerCase().includes(query);
         const partyMatch = call.parties?.some(
           (p) =>
             p.name?.toLowerCase().includes(query) ||
             p.emailAddress?.toLowerCase().includes(query)
         );
-        return titleMatch || partyMatch;
+        const accountNameMatch = call.accountNames?.some(
+          (name) => name.toLowerCase().includes(query)
+        );
+        return titleMatch || partyMatch || accountNameMatch;
       });
 
-      // Limit results to prevent token overflow
+      // Extract account IDs from text-matched calls
+      const matchedAccountIds = new Set<string>();
+      for (const call of textMatches) {
+        call.accountIds?.forEach((id) => matchedAccountIds.add(id));
+      }
+
+      // Pass 2: Account match — find all calls linked to discovered accounts
+      const accountMatches = matchedAccountIds.size > 0
+        ? allCalls.filter((call) =>
+            call.accountIds?.some((id) => matchedAccountIds.has(id))
+          )
+        : [];
+
+      // Deduplicate: merge text matches and account matches
+      const resultMap = new Map<string, GongCall>();
+      for (const call of [...textMatches, ...accountMatches]) {
+        resultMap.set(call.id, call);
+      }
+
+      const matchingCalls = Array.from(resultMap.values());
+
+      // Sort by date descending (most recent first)
+      matchingCalls.sort(
+        (a, b) => new Date(b.started || 0).getTime() - new Date(a.started || 0).getTime()
+      );
+
       const limitedCalls = matchingCalls.slice(0, limit);
 
       return {
@@ -273,7 +328,11 @@ export function createToolHandlers(client: GongClient) {
             text: JSON.stringify(
               {
                 query: args.query,
-                total_matches: matchingCalls.length,
+                total_calls_scanned: allCalls.length,
+                text_matches: textMatches.length,
+                account_ids_found: Array.from(matchedAccountIds),
+                account_matches: accountMatches.length,
+                total_unique_matches: matchingCalls.length,
                 returned: limitedCalls.length,
                 calls: limitedCalls.map(formatCall),
               },

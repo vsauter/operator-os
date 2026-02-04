@@ -65,6 +65,14 @@ export const toolDefinitions = {
     },
   },
 
+  search_account_issues: {
+    description:
+      "Search for a company's support issues by account name. Finds the matching Pylon account and returns all their issues.",
+    schema: {
+      company_name: z.string().describe("Company or account name to search for"),
+    },
+  },
+
   get_support_metrics: {
     description:
       "Get overall support metrics including open issue counts by state, urgent/high priority counts.",
@@ -73,15 +81,17 @@ export const toolDefinitions = {
 };
 
 // Helper to format issue for response
-function formatIssue(issue: PylonIssue) {
+// accountMap enriches account IDs with names (API only returns { id })
+function formatIssue(issue: PylonIssue, accountMap?: Map<string, string>) {
+  const accountName = issue.account_id && accountMap?.get(issue.account_id);
   return {
     id: issue.id,
     title: issue.title,
     state: issue.state,
     priority: issue.priority,
-    account: issue.account?.name || "Unknown",
-    requester: issue.requester?.name || "Unknown",
-    assignee: issue.assignee?.name || "Unassigned",
+    account: accountName || issue.account?.name || "Unknown",
+    requester: issue.requester?.name || issue.requester_id || "Unknown",
+    assignee: issue.assignee?.name || issue.assignee_id || "Unassigned",
     tags: issue.tags || [],
     created_at: issue.created_at,
     channel: issue.channel,
@@ -194,7 +204,7 @@ export function createToolHandlers(client: PylonClient) {
               {
                 issue: {
                   ...formatIssue(issue),
-                  description: issue.body_text,
+                  description: issue.body_text || issue.body_html,
                   updated_at: issue.updated_at,
                 },
               },
@@ -260,6 +270,76 @@ export function createToolHandlers(client: PylonClient) {
                   domain: a.primary_domain,
                   tags: a.tags,
                 })),
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    },
+
+    search_account_issues: async (args: { company_name: string }) => {
+      // Two API calls total:
+      // 1. GET /accounts — fetch all, filter by name client-side
+      //    (POST /accounts/search ignores filters server-side)
+      // 2. GET /issues — fetch all in 30-day window, filter by account IDs client-side
+      //    (avoids N per-account calls that caused rate limiting)
+
+      const accounts = await client.searchAccounts([
+        { field: "name", operator: "string_contains", value: args.company_name },
+      ]);
+
+      if (accounts.length === 0) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(
+                {
+                  query: args.company_name,
+                  message: `No accounts found matching "${args.company_name}"`,
+                  accounts: [],
+                  issues: [],
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      }
+
+      // Build account ID set and name map for enrichment
+      const matchedAccountIds = new Set(accounts.map((a) => a.id));
+      const accountNameMap = new Map(accounts.map((a) => [a.id, a.name]));
+
+      // Fetch all issues in one call, filter by matching account IDs
+      const allIssues = await client.getIssues();
+      const accountIssues = allIssues.filter(
+        (i) => i.account_id && matchedAccountIds.has(i.account_id)
+      );
+
+      // Build per-account summaries
+      const accountSummaries = accounts.map((account) => ({
+        id: account.id,
+        name: account.name,
+        domain: account.primary_domain,
+        tags: account.tags,
+        issue_count: accountIssues.filter((i) => i.account_id === account.id).length,
+      }));
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                query: args.company_name,
+                accounts_found: accounts.length,
+                accounts: accountSummaries,
+                total_issues: accountIssues.length,
+                issues: accountIssues.map((i) => formatIssue(i, accountNameMap)),
               },
               null,
               2

@@ -15,7 +15,9 @@ export interface GongCall {
   url?: string;
   parties?: GongParty[];
   dealIds?: string[];
-  accountId?: string;
+  accountIds?: string[];
+  // CRM context field values for account name matching
+  accountNames?: string[];
 }
 
 export interface GongParty {
@@ -26,6 +28,39 @@ export interface GongParty {
   userId?: string;
   speakerId?: string;
   affiliation?: "Internal" | "External" | "Unknown";
+}
+
+// Raw API response from POST /v2/calls/extensive
+// Call metadata is nested under metaData, CRM context is at call level
+export interface GongApiCall {
+  metaData?: {
+    id?: string;
+    title?: string;
+    started?: string;
+    duration?: number;
+    primaryUserId?: string;
+    direction?: string;
+    scope?: string;
+    media?: string;
+    language?: string;
+    url?: string;
+  };
+  parties?: {
+    id?: string;
+    name?: string;
+    title?: string;
+    affiliation?: string;
+    speakerId?: string;
+    emailAddress?: string;
+  }[];
+  context?: {
+    system?: string;
+    objects?: {
+      objectType?: string;
+      objectId?: string;
+      fields?: { name?: string; value?: string | number }[];
+    }[];
+  }[];
 }
 
 export interface GongDeal {

@@ -94,7 +94,7 @@ async function main() {
   const accessKeySecret = process.env.GONG_ACCESS_KEY_SECRET;
   const baseUrl = process.env.GONG_API_URL;
 
-  if (!accessKey || !accessKeySecret) {
+  if ((!accessKey || !accessKeySecret) && process.env.VERBOSE) {
     console.error(
       "No GONG_ACCESS_KEY/GONG_ACCESS_KEY_SECRET found, using mock data for development"
     );

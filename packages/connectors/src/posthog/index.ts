@@ -108,7 +108,7 @@ async function main() {
   const projectId = process.env.POSTHOG_PROJECT_ID;
   const baseUrl = process.env.POSTHOG_API_URL;
 
-  if (!apiKey || !projectId) {
+  if ((!apiKey || !projectId) && process.env.VERBOSE) {
     console.error(
       "No POSTHOG_API_KEY/POSTHOG_PROJECT_ID found, using mock data for development"
     );

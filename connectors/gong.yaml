@@ -5,8 +5,8 @@ description: Gong sales intelligence connector for calls, deals, and team activi
 
 mcp:
   # Run our local connector
-  command: npx
-  args: ["tsx", "packages/connectors/src/gong/index.ts"]
+  command: tsx
+  args: ["packages/connectors/src/gong/index.ts"]
   env:
     GONG_ACCESS_KEY: "{{credentials.accessKey}}"
     GONG_ACCESS_KEY_SECRET: "{{credentials.accessSecret}}"

@@ -1,5 +1,7 @@
 import type {
   GongCall,
+  GongParty,
+  GongApiCall,
   GongDeal,
   GongUser,
   GongDealActivity,
@@ -19,7 +21,12 @@ export class GongClient {
   ) {
     this.accessKey = accessKey;
     this.accessKeySecret = accessKeySecret;
-    this.baseUrl = baseUrl;
+    // Normalize URL to ensure it ends with /v2
+    let normalizedUrl = baseUrl.replace(/\/+$/, "");
+    if (!normalizedUrl.endsWith("/v2")) {
+      normalizedUrl += "/v2";
+    }
+    this.baseUrl = normalizedUrl;
   }
 
   private getAuthHeader(): string {
@@ -45,10 +52,14 @@ export class GongClient {
     });
 
     if (!response.ok) {
+      // Gong returns 404 when no data matches the filter (e.g., no calls in time range).
+      // Rethrow as a specific error so callers can handle it gracefully.
       const errorText = await response.text();
-      throw new Error(
+      const err = new Error(
         `Gong API error: ${response.status} ${response.statusText} - ${errorText}`
       );
+      (err as any).status = response.status;
+      throw err;
     }
 
     return response.json() as Promise<T>;
@@ -56,49 +67,96 @@ export class GongClient {
 
   // ==================== Calls ====================
 
+  // Map the raw API response (metaData wrapper + context at call level) to flat GongCall
+  private mapApiCallToGongCall(apiCall: GongApiCall): GongCall {
+    const meta = apiCall.metaData || {};
+    const allContextObjects = apiCall.context?.flatMap(system => system.objects || []) || [];
+
+    // Extract account names from CRM context fields (e.g. "Name" field on Account objects)
+    const accountObjects = allContextObjects.filter(o => o.objectType === "Account");
+    const accountNames = accountObjects
+      .flatMap(o => o.fields || [])
+      .filter(f => f.name === "Name" && f.value)
+      .map(f => String(f.value));
+
+    return {
+      id: meta.id || "",
+      title: meta.title,
+      started: meta.started,
+      duration: meta.duration,
+      primaryUserId: meta.primaryUserId,
+      direction: meta.direction as GongCall["direction"],
+      scope: meta.scope as GongCall["scope"],
+      media: meta.media as GongCall["media"],
+      url: meta.url,
+      parties: apiCall.parties?.map((p): GongParty => ({
+        id: p.id || p.speakerId || "",
+        emailAddress: p.emailAddress,
+        name: p.name,
+        title: p.title,
+        affiliation: p.affiliation as GongParty["affiliation"],
+      })),
+      dealIds: allContextObjects
+        .filter(o => o.objectType === "Deal" && o.objectId)
+        .map(o => o.objectId!),
+      accountIds: allContextObjects
+        .filter(o => o.objectType === "Account" && o.objectId)
+        .map(o => o.objectId!),
+      accountNames: accountNames.length > 0 ? accountNames : undefined,
+    };
+  }
+
   /**
-   * Fetch calls with pagination support
-   * @param filters - Optional filters for the query
-   * @param maxPages - Maximum number of pages to fetch (default: 10, ~1000 calls)
+   * Fetch calls using POST /v2/calls/extensive with CRM context and party details.
+   * This is the correct endpoint for listing calls with full data.
    */
   async getCalls(filters?: CallFilters, maxPages: number = 10): Promise<GongCall[]> {
-    const allCalls: GongCall[] = [];
+    const allApiCalls: GongApiCall[] = [];
     let cursor: string | undefined;
     let pageCount = 0;
 
     do {
-      const params = new URLSearchParams();
+      const body: Record<string, unknown> = {
+        contentSelector: {
+          context: "Extended",
+          exposedFields: {
+            parties: true,
+          },
+        },
+        filter: {} as Record<string, string>,
+      };
 
-      if (filters?.fromDateTime) {
-        params.set("fromDateTime", filters.fromDateTime);
-      }
-      if (filters?.toDateTime) {
-        params.set("toDateTime", filters.toDateTime);
-      }
-      if (filters?.primaryUserIds) {
-        filters.primaryUserIds.forEach(id => params.append("primaryUserIds", id));
-      }
-      if (cursor) {
-        params.set("cursor", cursor);
+      const filter = body.filter as Record<string, string>;
+      if (filters?.fromDateTime) filter.fromDateTime = filters.fromDateTime;
+      if (filters?.toDateTime) filter.toDateTime = filters.toDateTime;
+      if (cursor) body.cursor = cursor;
+
+      try {
+        const response = await this.request<{
+          calls: GongApiCall[];
+          records?: { cursor?: string };
+        }>("/calls/extensive", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+
+        if (response.calls) {
+          allApiCalls.push(...response.calls);
+        }
+
+        cursor = response.records?.cursor;
+      } catch (err) {
+        // Gong returns 404 when no calls exist in the time range — treat as empty
+        if ((err as any).status === 404) {
+          break;
+        }
+        throw err;
       }
 
-      const queryString = params.toString();
-      const endpoint = queryString ? `/calls?${queryString}` : "/calls";
-
-      const response = await this.request<{
-        calls: GongCall[];
-        records?: { cursor?: string };
-      }>(endpoint);
-
-      if (response.calls) {
-        allCalls.push(...response.calls);
-      }
-
-      cursor = response.records?.cursor;
       pageCount++;
     } while (cursor && pageCount < maxPages);
 
-    return allCalls;
+    return allApiCalls.map(c => this.mapApiCallToGongCall(c));
   }
 
   async getRecentCalls(daysBack: number = 7): Promise<GongCall[]> {
@@ -107,14 +165,33 @@ export class GongClient {
       Date.now() - daysBack * 24 * 60 * 60 * 1000
     ).toISOString();
 
-    return this.getCalls({ fromDateTime, toDateTime });
+    const calls = await this.getCalls({ fromDateTime, toDateTime });
+    // Sort most recent first
+    return calls.sort((a, b) => {
+      const dateA = a.started ? new Date(a.started).getTime() : 0;
+      const dateB = b.started ? new Date(b.started).getTime() : 0;
+      return dateB - dateA;
+    });
   }
 
   async getCall(callId: string): Promise<GongCall> {
-    const response = await this.request<{ calls: GongCall[] }>(
-      `/calls/${callId}`
-    );
-    return response.calls[0];
+    const response = await this.request<{
+      calls: GongApiCall[];
+    }>("/calls/extensive", {
+      method: "POST",
+      body: JSON.stringify({
+        filter: { callIds: [callId] },
+        contentSelector: {
+          context: "Extended",
+          exposedFields: {
+            parties: true,
+          },
+        },
+      }),
+    });
+
+    const apiCall = response.calls?.[0];
+    return apiCall ? this.mapApiCallToGongCall(apiCall) : { id: callId };
   }
 
   // ==================== Deals ====================
@@ -175,7 +252,6 @@ export class GongClient {
       0
     );
 
-    // Calculate engagement score based on call frequency and recency
     const daysSinceLastCall = sortedCalls[0]?.started
       ? Math.floor(
           (Date.now() - new Date(sortedCalls[0].started).getTime()) /
@@ -313,9 +389,10 @@ export class MockGongClient extends GongClient {
       scope: "External",
       media: "Video",
       dealIds: ["deal_001"],
+      accountIds: ["acc_001"],
       parties: [
         { id: "p1", name: "Sarah Chen", affiliation: "Internal" },
-        { id: "p2", name: "John Smith", title: "VP Sales", affiliation: "External" },
+        { id: "p2", name: "John Smith", title: "VP Sales", affiliation: "External", emailAddress: "john@acme.com" },
       ],
     },
     {
@@ -328,9 +405,10 @@ export class MockGongClient extends GongClient {
       scope: "External",
       media: "Video",
       dealIds: ["deal_002"],
+      accountIds: ["acc_002"],
       parties: [
         { id: "p1", name: "Sarah Chen", affiliation: "Internal" },
-        { id: "p3", name: "Jane Doe", title: "CTO", affiliation: "External" },
+        { id: "p3", name: "Jane Doe", title: "CTO", affiliation: "External", emailAddress: "jane@techstart.io" },
       ],
     },
     {
@@ -343,9 +421,10 @@ export class MockGongClient extends GongClient {
       scope: "External",
       media: "Video",
       dealIds: ["deal_003"],
+      accountIds: ["acc_003"],
       parties: [
         { id: "p4", name: "Mike Johnson", affiliation: "Internal" },
-        { id: "p5", name: "Alice Brown", title: "CEO", affiliation: "External" },
+        { id: "p5", name: "Alice Brown", title: "CEO", affiliation: "External", emailAddress: "alice@enterprise.com" },
       ],
     },
     {
@@ -358,9 +437,10 @@ export class MockGongClient extends GongClient {
       scope: "External",
       media: "Video",
       dealIds: ["deal_004"],
+      accountIds: ["acc_004"],
       parties: [
         { id: "p1", name: "Sarah Chen", affiliation: "Internal" },
-        { id: "p6", name: "Bob Wilson", title: "Director", affiliation: "External" },
+        { id: "p6", name: "Bob Wilson", title: "Director", affiliation: "External", emailAddress: "bob@globalsys.com" },
       ],
     },
   ];

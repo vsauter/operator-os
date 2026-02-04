@@ -1,67 +1,88 @@
 id: pylon
 name: Pylon
-type: api
+type: mcp
 description: Pylon customer support connector for issues and accounts
 
-api:
-  baseUrl: https://api.usepylon.com
-  auth:
-    type: token
-    token: "{{credentials.apiKey}}"
+mcp:
+  command: tsx
+  args: ["packages/connectors/src/pylon/index.ts"]
+  env:
+    PYLON_API_KEY: "{{credentials.apiKey}}"
+    PYLON_API_URL: "{{credentials.apiUrl}}"
 
 fetches:
-  issues:
-    endpoint: GET /issues
-    description: "Get support issues (requires start_time and end_time, max 30 day range)"
+  open_issues:
+    tool: get_open_issues
+    description: "Get all open support issues (new, waiting_on_you, waiting_on_customer, on_hold)"
     params:
-      start_time:
+      priority:
+        type: array
+        description: "Filter by priority levels (low, normal, high, urgent)"
+      state:
+        type: array
+        description: "Filter by issue state"
+      tags:
+        type: array
+        description: "Filter by tags"
+
+  issues_waiting_on_team:
+    tool: get_issues_waiting_on_team
+    description: "Get issues waiting for your team to respond (new, waiting_on_you)"
+
+  urgent_issues:
+    tool: get_urgent_issues
+    description: "Get high-priority and urgent issues needing immediate attention"
+
+  search_issues:
+    tool: search_issues
+    description: "Search issues by keyword in titles and descriptions"
+    params:
+      query:
         type: string
         required: true
-        description: "Start time in RFC3339 format (e.g., 2026-01-01T00:00:00Z)"
-      end_time:
-        type: string
-        required: true
-        description: "End time in RFC3339 format (e.g., 2026-01-31T23:59:59Z)"
+        description: "Search query"
       limit:
         type: number
-        default: 50
-        description: "Maximum number of issues to return"
+        default: 20
 
   issue:
-    endpoint: GET /issues/{{params.issueId}}
-    description: "Get a specific issue"
+    tool: get_issue_details
+    description: "Get detailed information about a specific issue"
     params:
-      issueId:
+      issue_id:
         type: string
         required: true
         description: "The issue ID to retrieve"
 
+  account_issues:
+    tool: get_account_issues
+    description: "Get all issues for a specific account"
+    params:
+      account_id:
+        type: string
+        required: true
+        description: "The account ID"
+
   accounts:
-    endpoint: GET /accounts
+    tool: get_accounts
     description: "Get customer accounts"
     params:
       limit:
         type: number
-        default: 50
-        description: "Maximum number of accounts to return"
+        default: 100
 
-  account:
-    endpoint: GET /accounts/{{params.accountId}}
-    description: "Get a specific account"
+  search_account_issues:
+    tool: search_account_issues
+    description: "Search for a company's support issues by account name"
     params:
-      accountId:
+      company_name:
         type: string
         required: true
-        description: "The account ID to retrieve"
+        description: "Company name to search for"
 
-  contacts:
-    endpoint: GET /contacts
-    description: "Get contacts"
-    params:
-      limit:
-        type: number
-        default: 50
-        description: "Maximum number of contacts to return"
+  support_metrics:
+    tool: get_support_metrics
+    description: "Get overall support metrics including open issue counts and priority breakdown"
 
 auth:
   type: api-key
@@ -69,3 +90,6 @@ auth:
     apiKey:
       label: "API Key"
       type: password
+    apiUrl:
+      label: "API URL (optional)"
+      default: "https://api.usepylon.com"

@@ -4,8 +4,8 @@ type: mcp
 description: PostHog analytics connector for events, users, and product insights
 
 mcp:
-  command: npx
-  args: ["tsx", "packages/connectors/src/posthog/index.ts"]
+  command: tsx
+  args: ["packages/connectors/src/posthog/index.ts"]
   env:
     POSTHOG_API_KEY: "{{credentials.apiKey}}"
     POSTHOG_PROJECT_ID: "{{credentials.projectId}}"

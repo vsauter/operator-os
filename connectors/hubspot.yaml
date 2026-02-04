@@ -5,8 +5,8 @@ description: HubSpot CRM connector for deals, contacts, companies, pipelines, an
 
 mcp:
   # Run our local connector
-  command: npx
-  args: ["tsx", "packages/connectors/src/hubspot/index.ts"]
+  command: tsx
+  args: ["packages/connectors/src/hubspot/index.ts"]
   env:
     HUBSPOT_ACCESS_TOKEN: "{{credentials.accessToken}}"
     HUBSPOT_API_URL: "{{credentials.apiUrl}}"
