@@ -3,7 +3,8 @@
  * Resolves {{credentials.field}} templates and merges params
  */
 
-import { getRegistry } from "./registry";
+import { getRegistry } from "./registry.js";
+import { loadCredentials } from "./credentials.js";
 import type {
   ConnectorSource,
   ConnectorDefinition,
@@ -12,24 +13,29 @@ import type {
   ResolvedCredentials,
   ParamDefinition,
   AuthField,
-} from "./types";
+} from "./types.js";
 
 /**
- * Resolve credentials from environment variables
- * Maps connector auth fields to env vars (e.g., accessToken -> HUBSPOT_ACCESS_TOKEN)
+ * Resolve credentials from local files and environment variables
+ * Checks: 1) Local credential files (~/.operator/credentials/)
+ *         2) Environment variables (CONNECTOR_FIELD_NAME)
  */
-export function resolveCredentials(
+export async function resolveCredentials(
   connector: ConnectorDefinition
-): ResolvedCredentials {
+): Promise<ResolvedCredentials> {
   const credentials: ResolvedCredentials = {};
 
   if (!connector.auth?.fields) {
     return credentials;
   }
 
+  // Load local credentials file if it exists
+  const localCredentials = await loadCredentials(connector.id);
+
   const connectorPrefix = connector.id.toUpperCase().replace(/-/g, "_");
 
-  for (const [fieldName, field] of Object.entries(connector.auth.fields)) {
+  const fields = connector.auth.fields as Record<string, AuthField>;
+  for (const [fieldName, field] of Object.entries(fields)) {
     // Convert camelCase to SCREAMING_SNAKE_CASE
     const envSuffix = fieldName
       .replace(/([A-Z])/g, "_$1")
@@ -37,13 +43,17 @@ export function resolveCredentials(
       .replace(/^_/, "");
 
     const envVar = `${connectorPrefix}_${envSuffix}`;
-    const value = process.env[envVar];
+
+    // Priority: 1) Environment variable, 2) Local credential file (by env var name), 3) Local credential file (by field name)
+    const value = process.env[envVar]
+      ?? localCredentials?.[envVar]
+      ?? localCredentials?.[fieldName];
 
     if (value) {
       credentials[fieldName] = value;
     } else if (field.required !== false && process.env.VERBOSE) {
       console.warn(
-        `Missing environment variable ${envVar} for connector ${connector.id}`
+        `Missing credential ${fieldName} (${envVar}) for connector ${connector.id}`
       );
     }
   }
@@ -197,7 +207,7 @@ export async function resolveSource(
   }
 
   // Resolve credentials
-  const credentials = resolveCredentials(connector);
+  const credentials = await resolveCredentials(connector);
 
   // Merge params: defaults -> source params -> runtime params
   let params = mergeParams(fetch, source.params);

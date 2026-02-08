@@ -4,6 +4,7 @@ import { resolve } from "path";
 import { Command } from "commander";
 import { runCommand } from "./commands/run.js";
 import { devCommand } from "./commands/dev.js";
+import { registerCommand } from "./commands/register.js";
 
 // Load .env.local from project root
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -40,5 +41,13 @@ program
   .description("Start the web UI")
   .option("-p, --port <port>", "Port to run on", "3000")
   .action(devCommand);
+
+program
+  .command("register")
+  .description("Register an MCP server as a connector")
+  .argument("<package>", "NPM package name of the MCP server")
+  .option("-v, --verbose", "Show detailed output including discovered tools")
+  .option("-y, --yes", "Non-interactive mode, accept all defaults")
+  .action(registerCommand);
 
 program.parse();

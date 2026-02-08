@@ -77,6 +77,25 @@ export async function callTool(
   return result.content;
 }
 
+export interface DiscoveredTool {
+  name: string;
+  description?: string;
+  inputSchema?: {
+    type: string;
+    properties?: Record<string, { type: string; description?: string }>;
+    required?: string[];
+  };
+}
+
+export async function listTools(client: Client): Promise<DiscoveredTool[]> {
+  const result = await client.listTools();
+  return result.tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema as DiscoveredTool["inputSchema"],
+  }));
+}
+
 export async function closeClient(client: Client): Promise<void> {
   await client.close();
 }
