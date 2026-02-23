@@ -1,0 +1,199 @@
+id: langfuse
+name: Langfuse
+type: mcp
+description: Langfuse LLM observability connector for traces, observations, scores, and usage analytics
+
+mcp:
+  command: tsx
+  args: ["packages/connectors/src/langfuse/index.ts"]
+  env:
+    LANGFUSE_PUBLIC_KEY: "{{credentials.publicKey}}"
+    LANGFUSE_SECRET_KEY: "{{credentials.secretKey}}"
+    LANGFUSE_API_URL: "{{credentials.apiUrl}}"
+
+fetches:
+  # Traces
+  recent_traces:
+    tool: get_recent_traces
+    description: "Get recent LLM traces"
+    params:
+      days_back:
+        type: number
+        default: 7
+        description: "Number of days to look back"
+      limit:
+        type: number
+        default: 50
+        description: "Maximum number of traces to return"
+
+  trace_details:
+    tool: get_trace_details
+    description: "Get detailed information about a specific trace"
+    params:
+      trace_id:
+        type: string
+        required: true
+        description: "The trace ID"
+
+  search_traces:
+    tool: search_traces
+    description: "Search for traces by name or user ID"
+    params:
+      query:
+        type: string
+        required: true
+        description: "Search query"
+      days_back:
+        type: number
+        default: 30
+      limit:
+        type: number
+        default: 50
+
+  traces_by_session:
+    tool: get_traces_by_session
+    description: "Get all traces for a session"
+    params:
+      session_id:
+        type: string
+        required: true
+        description: "The session ID"
+      limit:
+        type: number
+        default: 50
+
+  # Observations
+  observations:
+    tool: get_observations
+    description: "Get LLM observations (generations, spans, events)"
+    params:
+      type:
+        type: string
+        description: "Filter by type: GENERATION, SPAN, or EVENT"
+      days_back:
+        type: number
+        default: 7
+      limit:
+        type: number
+        default: 50
+
+  trace_observations:
+    tool: get_trace_observations
+    description: "Get all observations for a trace"
+    params:
+      trace_id:
+        type: string
+        required: true
+        description: "The trace ID"
+
+  observation_details:
+    tool: get_observation_details
+    description: "Get detailed information about an observation"
+    params:
+      observation_id:
+        type: string
+        required: true
+        description: "The observation ID"
+
+  # Scores
+  scores:
+    tool: get_scores
+    description: "Get evaluation scores"
+    params:
+      name:
+        type: string
+        description: "Filter by score name"
+      source:
+        type: string
+        description: "Filter by source: API, EVAL, or ANNOTATION"
+      days_back:
+        type: number
+        default: 7
+      limit:
+        type: number
+        default: 50
+
+  trace_scores:
+    tool: get_trace_scores
+    description: "Get all scores for a trace"
+    params:
+      trace_id:
+        type: string
+        required: true
+        description: "The trace ID"
+
+  # Sessions
+  sessions:
+    tool: get_sessions
+    description: "Get user sessions"
+    params:
+      limit:
+        type: number
+        default: 50
+
+  session_details:
+    tool: get_session_details
+    description: "Get detailed information about a session"
+    params:
+      session_id:
+        type: string
+        required: true
+        description: "The session ID"
+
+  # Prompts
+  prompts:
+    tool: get_prompts
+    description: "Get prompt templates"
+    params:
+      limit:
+        type: number
+        default: 50
+
+  prompt:
+    tool: get_prompt
+    description: "Get a specific prompt by name"
+    params:
+      name:
+        type: string
+        required: true
+        description: "The prompt name"
+      version:
+        type: number
+        description: "Specific version number"
+      label:
+        type: string
+        description: "Label to fetch (e.g., 'production')"
+
+  # Analytics
+  usage_summary:
+    tool: get_usage_summary
+    description: "Get LLM usage summary including costs and metrics"
+    params:
+      days_back:
+        type: number
+        default: 7
+        description: "Number of days to analyze"
+
+  model_usage:
+    tool: get_model_usage
+    description: "Get usage breakdown by model"
+    params:
+      days_back:
+        type: number
+        default: 7
+        description: "Number of days to analyze"
+
+auth:
+  type: basic
+  fields:
+    publicKey:
+      label: "Public Key"
+      description: "Langfuse Public Key (starts with pk-lf-)"
+    secretKey:
+      label: "Secret Key"
+      type: password
+      description: "Langfuse Secret Key (starts with sk-lf-)"
+    apiUrl:
+      label: "API URL"
+      default: "https://cloud.langfuse.com"
+      description: "Langfuse API URL (use https://us.cloud.langfuse.com for US region)"
