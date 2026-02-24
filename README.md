@@ -4,7 +4,7 @@ A unified platform for orchestrating AI-powered workflows across multiple data s
 
 ## Features
 
-- **Multi-source context aggregation** - Pull data from HubSpot, Gong, Linear, Pylon, and custom MCP servers in parallel
+- **Multi-source context aggregation** - Pull data from HubSpot, Gong, Langfuse, Linear, PostHog, Pylon, and custom MCP servers in parallel
 - **Flexible operator configs** - Define workflows in YAML with multiple tasks per operator
 - **Dual interface** - CLI for automation, Web UI for interactive use
 - **Extensible connectors** - Support for both MCP (Model Context Protocol) and REST API integrations
@@ -192,10 +192,50 @@ fetches:
 |-----------|------|-------------|
 | **HubSpot** | MCP | CRM - deals, contacts, companies, pipelines, owners |
 | **Gong** | MCP | Sales intelligence - calls, team activity |
+| **Langfuse** | MCP | LLM observability - traces, costs, users, sessions |
 | **Linear** | MCP | Project management - issues, projects, teams |
 | **PostHog** | MCP | Product analytics - events, users, feature flags, cohorts |
 | **Pylon** | API | Customer support - issues, accounts |
 | **Filesystem** | MCP | Local file access |
+
+### Langfuse Connector
+
+The Langfuse connector brings LLM observability data into your GTM workflows. It exposes usage patterns that typically stay siloed in engineering dashboards.
+
+**Key capabilities:**
+- **Traces** - LLM calls with input/output, latency, and costs
+- **User activity** - Aggregate usage by user/company with token counts and spend
+- **Sessions** - Group related traces into user sessions
+- **Cost analytics** - Track LLM spend by model, user, or time period
+
+**Example use case: Finding untapped enterprise accounts**
+
+Combine Langfuse with HubSpot and PostHog to identify high-activity users without sales coverage:
+
+```yaml
+sources:
+  - connector: hubspot
+    fetch: open_deals_with_owners
+
+  - connector: langfuse
+    fetch: user_traces
+    params:
+      user_id: "Acme Corp"
+      days_back: 30
+
+  - connector: posthog
+    fetch: persons
+
+tasks:
+  find-gaps:
+    name: Find Pipeline Gaps
+    prompt: |
+      Cross-reference LLM usage from Langfuse with HubSpot deals.
+      Identify companies with significant platform activity but no open opportunity.
+    default: true
+```
+
+This surfaces accounts where product usage signals buying intent, but sales hasn't engaged yet.
 
 ## Environment Variables
 
@@ -220,6 +260,11 @@ GONG_API_URL=https://api.gong.io/v2   # or your regional URL
 
 # Linear
 LINEAR_API_KEY=lin_api_...
+
+# Langfuse
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_API_URL=https://cloud.langfuse.com  # or your self-hosted URL
 
 # PostHog
 POSTHOG_API_KEY=phx_...
