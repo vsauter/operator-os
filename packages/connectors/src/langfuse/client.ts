@@ -394,30 +394,55 @@ export class LangfuseClient {
       lastSeen: string;
     }>
   > {
-    const traces = await this.getRecentTraces(limit, daysBack);
+    // Fetch multiple pages to get a more comprehensive user list
+    const fromTimestamp = new Date(
+      Date.now() - daysBack * 24 * 60 * 60 * 1000
+    ).toISOString();
 
     const userMap = new Map<
       string,
       { count: number; cost: number; tokens: number; lastSeen: string }
     >();
 
-    for (const trace of traces) {
-      const userId = trace.userId || "anonymous";
-      const existing = userMap.get(userId) || {
-        count: 0,
-        cost: 0,
-        tokens: 0,
-        lastSeen: trace.timestamp,
-      };
+    // Fetch up to 10 pages of 100 traces each to get better coverage
+    let page = 1;
+    const maxPages = 10;
 
-      existing.count++;
-      existing.cost += trace.totalCost || 0;
-      existing.tokens += trace.totalTokens || 0;
-      if (trace.timestamp > existing.lastSeen) {
-        existing.lastSeen = trace.timestamp;
+    while (page <= maxPages) {
+      try {
+        const traces = await this.getTraces({
+          fromTimestamp,
+          limit: 100,
+          page,
+        });
+
+        if (traces.length === 0) break;
+
+        for (const trace of traces) {
+          const userId = trace.userId || "anonymous";
+          const existing = userMap.get(userId) || {
+            count: 0,
+            cost: 0,
+            tokens: 0,
+            lastSeen: trace.timestamp,
+          };
+
+          existing.count++;
+          existing.cost += trace.totalCost || 0;
+          existing.tokens += trace.totalTokens || 0;
+          if (trace.timestamp > existing.lastSeen) {
+            existing.lastSeen = trace.timestamp;
+          }
+
+          userMap.set(userId, existing);
+        }
+
+        // If we got fewer than 100, we've reached the end
+        if (traces.length < 100) break;
+        page++;
+      } catch {
+        break;
       }
-
-      userMap.set(userId, existing);
     }
 
     return Array.from(userMap.entries())
@@ -428,7 +453,7 @@ export class LangfuseClient {
         totalTokens: data.tokens,
         lastSeen: data.lastSeen,
       }))
-      .sort((a, b) => b.traceCount - a.traceCount);
+      .sort((a, b) => b.totalCost - a.totalCost); // Sort by cost to prioritize high-value users
   }
 
   async getUserTraces(
@@ -454,7 +479,7 @@ export class LangfuseClient {
     firstSeen: string;
     lastSeen: string;
   }> {
-    const traces = await this.getUserTraces(userId, 100, daysBack);
+    const traces = await this.getUserTraces(userId, 50, daysBack);
 
     if (traces.length === 0) {
       return {
@@ -470,18 +495,22 @@ export class LangfuseClient {
       };
     }
 
-    // Get observations for model breakdown
+    // Get observations for model breakdown - fetch in parallel for speed
+    // Limit to first 10 traces to avoid timeout
     const modelMap = new Map<string, number>();
-    for (const trace of traces) {
-      try {
-        const observations = await this.getTraceObservations(trace.id);
-        for (const obs of observations) {
+    const tracesToFetch = traces.slice(0, 10);
+
+    const observationResults = await Promise.allSettled(
+      tracesToFetch.map((trace) => this.getTraceObservations(trace.id))
+    );
+
+    for (const result of observationResults) {
+      if (result.status === "fulfilled") {
+        for (const obs of result.value) {
           if (obs.model) {
             modelMap.set(obs.model, (modelMap.get(obs.model) || 0) + 1);
           }
         }
-      } catch {
-        // Skip if we can't get observations
       }
     }
 

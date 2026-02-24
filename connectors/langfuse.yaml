@@ -183,6 +183,47 @@ fetches:
         default: 7
         description: "Number of days to analyze"
 
+  # Users
+  users:
+    tool: get_users
+    description: "Get list of users with their LLM usage stats"
+    params:
+      days_back:
+        type: number
+        default: 7
+        description: "Number of days to look back"
+      limit:
+        type: number
+        default: 100
+        description: "Maximum number of traces to analyze"
+
+  user_traces:
+    tool: get_user_traces
+    description: "Get all traces for a specific user"
+    params:
+      user_id:
+        type: string
+        required: true
+        description: "The user ID"
+      days_back:
+        type: number
+        default: 30
+      limit:
+        type: number
+        default: 50
+
+  user_stats:
+    tool: get_user_stats
+    description: "Get detailed statistics for a specific user"
+    params:
+      user_id:
+        type: string
+        required: true
+        description: "The user ID"
+      days_back:
+        type: number
+        default: 30
+
 auth:
   type: basic
   fields:
