@@ -3,6 +3,7 @@ import { readFile, access } from "fs/promises";
 import { parse } from "yaml";
 import { join } from "path";
 import { gatherContext, generateBriefing } from "@operator/core";
+import type { OperatorSource, LegacySource, ConnectorSource } from "@operator/core";
 import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
 import { briefingRequestSchema, validateRequest } from "@/lib/validation";
 
@@ -28,24 +29,51 @@ async function findOperatorPath(operatorId: string): Promise<string> {
 interface RawConfig {
   id: string;
   name: string;
-  sources: Array<{
-    // New connector-based format
-    connector?: string;
-    fetch?: string;
-    params?: Record<string, unknown>;
-    // Legacy format
-    id?: string;
-    name?: string;
-    connection?: {
-      command: string;
-      args: string[];
-      env?: Record<string, string>;
-    };
-    tool?: string;
-    args?: Record<string, unknown>;
-  }>;
+  sources: unknown[];
   tasks?: Record<string, { name: string; prompt: string; default?: boolean }>;
   briefing?: { prompt: string };
+}
+
+function processLegacySourceEnv(source: LegacySource): LegacySource {
+  if (source.connection.env) {
+    const processedEnv: Record<string, string> = {};
+    for (const [key, value] of Object.entries(source.connection.env)) {
+      if (typeof value === "string" && value.startsWith("$")) {
+        const envVar = value.slice(1);
+        processedEnv[key] = process.env[envVar] || "";
+      } else {
+        processedEnv[key] = value;
+      }
+    }
+    source.connection.env = processedEnv;
+  }
+  return source;
+}
+
+function normalizeSource(rawSource: unknown): OperatorSource {
+  if (!rawSource || typeof rawSource !== "object") {
+    throw new Error(`Invalid source format: ${JSON.stringify(rawSource)}`);
+  }
+
+  const source = rawSource as Record<string, unknown>;
+
+  if (typeof source.connector === "string" && typeof source.fetch === "string") {
+    return source as unknown as ConnectorSource;
+  }
+
+  if (
+    typeof source.id === "string" &&
+    typeof source.name === "string" &&
+    typeof source.tool === "string" &&
+    source.connection &&
+    typeof source.connection === "object"
+  ) {
+    return processLegacySourceEnv(source as unknown as LegacySource);
+  }
+
+  throw new Error(
+    `Invalid source format. Expected either { connector, fetch } or { connection, tool }. Got: ${JSON.stringify(source)}`
+  );
 }
 
 function countItems(data: unknown): number | undefined {
@@ -128,18 +156,7 @@ export async function POST(request: NextRequest) {
     const operatorPath = await findOperatorPath(operatorId);
     const content = await readFile(operatorPath, "utf-8");
     const config = parse(content) as RawConfig;
-
-    // Substitute environment variables for legacy sources only
-    for (const source of config.sources) {
-      if (source.connection?.env) {
-        for (const [key, value] of Object.entries(source.connection.env)) {
-          if (typeof value === "string" && value.startsWith("$")) {
-            const envVar = value.slice(1);
-            source.connection.env[key] = process.env[envVar] || "";
-          }
-        }
-      }
-    }
+    const sources = config.sources.map(normalizeSource);
 
     // Get prompt from task or briefing
     let prompt: string | undefined;
@@ -164,13 +181,17 @@ export async function POST(request: NextRequest) {
     const sourceTimings: Map<string, { startTime: number; endTime?: number }> = new Map();
 
     // Start timing for all sources
-    for (const source of config.sources) {
-      // Generate ID for new connector format or use legacy id
-      const sourceId = source.id ?? (source.connector && source.fetch ? `${source.connector}-${source.fetch}` : "unknown");
+    for (const source of sources) {
+      let sourceId: string;
+      if ("connector" in source && "fetch" in source) {
+        sourceId = source.id ?? `${source.connector}-${source.fetch}`;
+      } else {
+        sourceId = source.id;
+      }
       sourceTimings.set(sourceId, { startTime: Date.now() });
     }
 
-    const contextResults = await gatherContext(config.sources);
+    const contextResults = await gatherContext(sources);
 
     // Calculate end times (approximate - all finish around the same time with Promise.allSettled)
     const contextEndTime = Date.now();

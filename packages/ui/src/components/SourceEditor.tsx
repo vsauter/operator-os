@@ -189,6 +189,15 @@ export default function SourceEditor({ sources, onChange }: SourceEditorProps) {
                   />
                 </div>
               </div>
+              {source.connector && source.fetch && (
+                <div className="pt-2 border-t border-gray-200">
+                  <TestConnectionButton
+                    connector={source.connector}
+                    fetchId={source.fetch}
+                    params={source.params}
+                  />
+                </div>
+              )}
             </div>
           ) : isLegacySource(source) ? (
             // Legacy source UI
@@ -269,15 +278,9 @@ export default function SourceEditor({ sources, onChange }: SourceEditorProps) {
                 />
               </div>
 
-              {source.connection.command && source.tool && (
-                <div className="pt-2 border-t border-gray-200">
-                  <TestConnectionButton
-                    connection={source.connection}
-                    tool={source.tool}
-                    args={source.args}
-                  />
-                </div>
-              )}
+              <div className="pt-2 border-t border-gray-200 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                Browser connection testing is only available for connector-based sources.
+              </div>
             </div>
           ) : null}
         </div>

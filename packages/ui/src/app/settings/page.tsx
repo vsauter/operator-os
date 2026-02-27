@@ -300,7 +300,7 @@ export default function SettingsPage() {
                                       className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded"
                                     >
                                       {name}
-                                      {(def as Record<string, unknown>)?.required && (
+                                      {Boolean((def as { required?: unknown })?.required) && (
                                         <span className="text-red-500">*</span>
                                       )}
                                     </span>

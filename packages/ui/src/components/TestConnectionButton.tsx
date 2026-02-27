@@ -2,12 +2,6 @@
 
 import { useState } from "react";
 
-interface ConnectionConfig {
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
-}
-
 interface TestResult {
   success: boolean;
   durationMs: number;
@@ -24,17 +18,17 @@ interface TestResult {
 }
 
 interface TestConnectionButtonProps {
-  connection: ConnectionConfig;
-  tool: string;
-  args?: Record<string, unknown>;
+  connector: string;
+  fetchId: string;
+  params?: Record<string, unknown>;
   onResult?: (result: TestResult) => void;
   compact?: boolean;
 }
 
 export default function TestConnectionButton({
-  connection,
-  tool,
-  args,
+  connector,
+  fetchId,
+  params,
   onResult,
   compact = false,
 }: TestConnectionButtonProps) {
@@ -51,7 +45,7 @@ export default function TestConnectionButton({
       const res = await fetch("/api/connections/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connection, tool, args }),
+        body: JSON.stringify({ connector, fetch: fetchId, params }),
       });
 
       const data: TestResult = await res.json();

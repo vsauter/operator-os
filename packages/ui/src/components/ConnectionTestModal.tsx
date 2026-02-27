@@ -2,12 +2,6 @@
 
 import { useState } from "react";
 
-interface ConnectionConfig {
-  command: string;
-  args: string[];
-  env?: Record<string, string>;
-}
-
 interface TestResult {
   success: boolean;
   durationMs: number;
@@ -24,10 +18,17 @@ interface TestResult {
 }
 
 interface Source {
-  id: string;
-  name: string;
-  connection: ConnectionConfig;
-  tool: string;
+  id?: string;
+  name?: string;
+  connector?: string;
+  fetch?: string;
+  params?: Record<string, unknown>;
+  connection?: {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+  };
+  tool?: string;
   args?: Record<string, unknown>;
 }
 
@@ -53,9 +54,31 @@ export default function ConnectionTestModal({
   if (!open) return null;
 
   const testSource = async (source: Source) => {
+    const sourceId = source.id ?? `${source.connector || "source"}-${source.fetch || "unknown"}`;
+
+    // Legacy custom sources are not tested via browser endpoint anymore.
+    if (!source.connector || !source.fetch) {
+      setTestStates((prev) => ({
+        ...prev,
+        [sourceId]: {
+          status: "error",
+          result: {
+            success: false,
+            durationMs: 0,
+            error: {
+              code: "UNSUPPORTED_SOURCE",
+              message: "Custom source testing is not supported in the browser",
+              suggestion: "Use connector-based sources, or run custom-source tests from the CLI locally.",
+            },
+          },
+        },
+      }));
+      return;
+    }
+
     setTestStates((prev) => ({
       ...prev,
-      [source.id]: { status: "testing", result: null },
+      [sourceId]: { status: "testing", result: null },
     }));
 
     try {
@@ -63,16 +86,16 @@ export default function ConnectionTestModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          connection: source.connection,
-          tool: source.tool,
-          args: source.args,
+          connector: source.connector,
+          fetch: source.fetch,
+          params: source.params,
         }),
       });
 
       const result: TestResult = await res.json();
       setTestStates((prev) => ({
         ...prev,
-        [source.id]: {
+        [sourceId]: {
           status: result.success ? "success" : "error",
           result,
         },
@@ -80,7 +103,7 @@ export default function ConnectionTestModal({
     } catch {
       setTestStates((prev) => ({
         ...prev,
-        [source.id]: {
+        [sourceId]: {
           status: "error",
           result: {
             success: false,
@@ -156,10 +179,11 @@ export default function ConnectionTestModal({
 
         <div className="space-y-3">
           {sources.map((source) => {
-            const state = testStates[source.id] || { status: "idle", result: null };
+            const sourceId = source.id ?? `${source.connector || "source"}-${source.fetch || "unknown"}`;
+            const state = testStates[sourceId] || { status: "idle", result: null };
             return (
               <div
-                key={source.id}
+                key={sourceId}
                 className={`border rounded-lg p-4 ${
                   state.status === "success"
                     ? "border-green-200 bg-green-50"
@@ -172,10 +196,16 @@ export default function ConnectionTestModal({
                   <div className="flex items-center gap-3">
                     {getStatusIcon(state.status)}
                     <div>
-                      <p className="font-medium">{source.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {source.connection.command} {source.connection.args.join(" ")}
-                      </p>
+                      <p className="font-medium">{source.name || sourceId}</p>
+                      {source.connector && source.fetch ? (
+                        <p className="text-xs text-gray-500">
+                          {source.connector}.{source.fetch}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-600">
+                          Legacy custom source (not testable in browser)
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

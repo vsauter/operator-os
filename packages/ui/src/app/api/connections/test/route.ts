@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, callTool, closeClient } from "@operator/core";
+import { resolveSource, executeMcpFetch, executeApiFetch, getRegistry } from "@operator/core";
+import { checkRateLimit, getClientId, RATE_LIMITS } from "@/lib/rate-limit";
+import { connectionTestSchema, validateRequest } from "@/lib/validation";
 
 interface TestRequest {
-  connection: {
-    command: string;
-    args: string[];
-    env?: Record<string, string>;
-  };
-  tool: string;
-  args?: Record<string, unknown>;
+  connector: string;
+  fetch: string;
+  params?: Record<string, unknown>;
 }
 
 interface ErrorInfo {
@@ -26,6 +24,46 @@ interface TestResponse {
     sample: unknown;
   };
   availableTools?: string[];
+}
+
+function isTruthy(value: string | undefined): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
+function isLoopbackIp(ip: string): boolean {
+  const normalized = ip.trim().toLowerCase();
+  return (
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized === "::ffff:127.0.0.1"
+  );
+}
+
+function isLocalRequest(request: NextRequest): boolean {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp) {
+      return isLoopbackIp(firstIp);
+    }
+  }
+
+  const hostHeader = request.headers.get("host");
+  if (hostHeader) {
+    const host = hostHeader.split(":")[0].toLowerCase();
+    if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") {
+      return true;
+    }
+  }
+
+  const urlHost = request.nextUrl.hostname?.toLowerCase();
+  if (urlHost === "localhost" || urlHost === "127.0.0.1" || urlHost === "::1") {
+    return true;
+  }
+
+  return false;
 }
 
 function mapError(error: unknown): ErrorInfo {
@@ -129,73 +167,87 @@ function getSample(data: unknown): unknown {
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let client: any = null;
+  const allowRemoteConnectionTest = isTruthy(process.env.OPERATOR_ALLOW_REMOTE_CONNECTION_TEST);
+
+  if (!allowRemoteConnectionTest && !isLocalRequest(request)) {
+    return NextResponse.json(
+      {
+        success: false,
+        durationMs: Date.now() - startTime,
+        error: {
+          code: "REMOTE_DISABLED",
+          message: "Connection testing is restricted to localhost by default",
+          suggestion: "Set OPERATOR_ALLOW_REMOTE_CONNECTION_TEST=true to explicitly allow remote requests.",
+        },
+      } as TestResponse,
+      { status: 403 }
+    );
+  }
+
+  const clientId = getClientId(request);
+  const rateLimit = checkRateLimit(`connection-test:${clientId}`, RATE_LIMITS.connectionTest);
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        durationMs: Date.now() - startTime,
+        error: {
+          code: "RATE_LIMIT",
+          message: "Rate limit exceeded",
+          suggestion: "Please wait before testing more connections.",
+        },
+      } as TestResponse,
+      { status: 429 }
+    );
+  }
 
   try {
-    const body: TestRequest = await request.json();
-    const { connection, tool, args = {} } = body;
-
-    if (!connection || !connection.command) {
+    const body = await request.json();
+    const validation = validateRequest(connectionTestSchema, body);
+    if (!validation.success) {
       return NextResponse.json({
         success: false,
         durationMs: Date.now() - startTime,
         error: {
           code: "INVALID_REQUEST",
-          message: "Missing connection configuration",
-          suggestion: "Provide a connection with command and args.",
+          message: validation.error,
+          suggestion: "Select a valid connector and fetch operation.",
         },
-      } as TestResponse);
+      } as TestResponse, { status: 400 });
     }
 
-    // Substitute environment variables
-    const processedEnv: Record<string, string> = {};
-    if (connection.env) {
-      for (const [key, value] of Object.entries(connection.env)) {
-        if (typeof value === "string" && value.startsWith("$")) {
-          const envVar = value.slice(1);
-          processedEnv[key] = process.env[envVar] || "";
-        } else {
-          processedEnv[key] = value;
-        }
-      }
-    }
+    const { connector, fetch, params = {} } = validation.data as TestRequest;
+    await getRegistry().load();
 
-    const processedConnection = {
-      ...connection,
-      env: processedEnv,
-    };
-
-    // Connect with timeout
-    const connectPromise = createClient(processedConnection);
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Connection timeout after 10s")), 10000);
+    const context = await resolveSource({
+      connector,
+      fetch,
+      params,
     });
 
-    client = await Promise.race([connectPromise, timeoutPromise]);
+    const result = context.connector.type === "mcp"
+      ? await executeMcpFetch(context)
+      : await executeApiFetch(context);
 
-    // Call the tool
-    if (tool) {
-      const data = await callTool(client, tool, args);
-      const itemCount = countItems(data);
-      const sample = getSample(data);
-
+    if (result.error) {
       return NextResponse.json({
-        success: true,
+        success: false,
         durationMs: Date.now() - startTime,
-        data: {
-          itemCount,
-          sample,
-        },
+        error: mapError(result.error),
       } as TestResponse);
     }
 
-    // Just connection test without tool call
+    const itemCount = countItems(result.data);
+    const sample = getSample(result.data);
+
     return NextResponse.json({
       success: true,
       durationMs: Date.now() - startTime,
+      data: {
+        itemCount,
+        sample,
+      },
     } as TestResponse);
-
   } catch (error) {
     console.error("Connection test failed:", error);
     return NextResponse.json({
@@ -203,13 +255,5 @@ export async function POST(request: NextRequest) {
       durationMs: Date.now() - startTime,
       error: mapError(error),
     } as TestResponse);
-  } finally {
-    if (client) {
-      try {
-        await closeClient(client);
-      } catch {
-        // Ignore close errors
-      }
-    }
   }
 }

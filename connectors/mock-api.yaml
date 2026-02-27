@@ -1,0 +1,22 @@
+id: mock-api
+name: Mock API
+type: api
+description: Simple no-auth connector for smoke testing operator flow
+
+api:
+  baseUrl: https://httpbin.org
+  auth:
+    type: none
+
+fetches:
+  ping:
+    endpoint: GET /json
+    description: "Fetch static sample JSON for smoke tests"
+
+  echo:
+    endpoint: GET /anything
+    description: "Echo request details for runtime param testing"
+    params:
+      topic:
+        type: string
+        default: "general"

@@ -18,9 +18,9 @@ export type {
   APIConfig,
   ParamDefinition,
   ResolvedCredentials,
-} from "./types.js";
+} from "./types";
 
-export { isConnectorSource, isLegacySource } from "./types.js";
+export { isConnectorSource, isLegacySource } from "./types";
 
 // Registry
 export {
@@ -28,7 +28,7 @@ export {
   getRegistry,
   initRegistry,
   resetRegistry,
-} from "./registry.js";
+} from "./registry";
 
 // Resolver
 export {
@@ -38,11 +38,11 @@ export {
   resolveTemplates,
   mergeParams,
   validateParams,
-} from "./resolver.js";
+} from "./resolver";
 
 // Adapters
-export { executeMcpFetch } from "./mcp-adapter.js";
-export { executeApiFetch } from "./api-adapter.js";
+export { executeMcpFetch } from "./mcp-adapter";
+export { executeApiFetch } from "./api-adapter";
 
 // Credentials
 export {
@@ -53,7 +53,7 @@ export {
   loadCredentials,
   getCredential,
   deleteCredentials,
-} from "./credentials.js";
+} from "./credentials";
 
 // Discovery
 export {
@@ -61,7 +61,7 @@ export {
   checkPackageExists,
   type DiscoveryResult,
   type DiscoveredTool,
-} from "./discover.js";
+} from "./discover";
 
 // Generator
 export {
@@ -70,4 +70,4 @@ export {
   getConnectorPath,
   generateConnectorDefinition,
   saveConnectorDefinition,
-} from "./generator.js";
+} from "./generator";

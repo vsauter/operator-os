@@ -124,13 +124,12 @@ export type GoalsUpdateRequest = z.infer<typeof goalsUpdateSchema>;
  * Connection test request validation
  */
 export const connectionTestSchema = z.object({
-  connection: z.object({
-    command: z.string().min(1).max(500),
-    args: z.array(z.string().max(1000)),
-    env: z.record(z.string()).optional(),
-  }),
-  tool: z.string().min(1).max(100),
-  args: z.record(z.unknown()).optional(),
+  connector: z
+    .string()
+    .min(1, "Connector is required")
+    .max(100, "Connector too long"),
+  fetch: z.string().min(1, "Fetch is required").max(100, "Fetch too long"),
+  params: z.record(z.unknown()).optional(),
 });
 
 export type ConnectionTestRequest = z.infer<typeof connectionTestSchema>;

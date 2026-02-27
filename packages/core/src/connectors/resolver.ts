@@ -3,8 +3,8 @@
  * Resolves {{credentials.field}} templates and merges params
  */
 
-import { getRegistry } from "./registry.js";
-import { loadCredentials } from "./credentials.js";
+import { getRegistry } from "./registry";
+import { loadCredentials } from "./credentials";
 import type {
   ConnectorSource,
   ConnectorDefinition,
@@ -13,7 +13,7 @@ import type {
   ResolvedCredentials,
   ParamDefinition,
   AuthField,
-} from "./types.js";
+} from "./types";
 
 /**
  * Resolve credentials from local files and environment variables

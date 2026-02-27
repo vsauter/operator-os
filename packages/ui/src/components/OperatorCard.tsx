@@ -20,14 +20,17 @@ interface Operator {
 }
 
 interface FullSource {
-  id: string;
-  name: string;
-  connection: {
+  id?: string;
+  name?: string;
+  connector?: string;
+  fetch?: string;
+  params?: Record<string, unknown>;
+  connection?: {
     command: string;
     args: string[];
     env?: Record<string, string>;
   };
-  tool: string;
+  tool?: string;
   args?: Record<string, unknown>;
 }
 

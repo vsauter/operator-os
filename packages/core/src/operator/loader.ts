@@ -36,16 +36,28 @@ function processLegacySourceEnv(source: LegacySource): LegacySource {
  * Normalize a source from YAML to the appropriate type
  */
 function normalizeSource(rawSource: unknown): OperatorSource {
+  if (!rawSource || typeof rawSource !== "object") {
+    throw new Error(
+      `Invalid source format. Expected object, got: ${JSON.stringify(rawSource)}`
+    );
+  }
+
   const source = rawSource as Record<string, unknown>;
 
   // Check if it's the new connector format
-  if ("connector" in source && "fetch" in source) {
-    return source as ConnectorSource;
+  if (typeof source.connector === "string" && typeof source.fetch === "string") {
+    return source as unknown as ConnectorSource;
   }
 
   // Check if it's the legacy format
-  if ("connection" in source && "tool" in source) {
-    return processLegacySourceEnv(source as LegacySource);
+  if (
+    typeof source.id === "string" &&
+    typeof source.name === "string" &&
+    typeof source.tool === "string" &&
+    source.connection &&
+    typeof source.connection === "object"
+  ) {
+    return processLegacySourceEnv(source as unknown as LegacySource);
   }
 
   throw new Error(
