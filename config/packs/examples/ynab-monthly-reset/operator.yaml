@@ -1,0 +1,63 @@
+id: ynab-monthly-reset
+name: YNAB Monthly Reset
+audience: consumer
+description: Analyze monthly budget performance and generate actionable reset plan
+
+sources:
+  - connector: ynab
+    fetch: budget_summary
+    params:
+      month: "{{params.month}}"
+  - connector: ynab
+    fetch: transactions_by_category
+    params:
+      month: "{{params.month}}"
+
+goal:
+  outcome: "Create a practical monthly budget reset with prioritized actions."
+  intent: "Help the user avoid overspending in recurring risk categories."
+  success:
+    - "Identify top 3 over-budget categories"
+    - "Propose category target adjustments for next month"
+    - "Provide a short action checklist for the next 7 days"
+
+constraints:
+  currency: USD
+  focus_categories:
+    - Dining Out
+    - Shopping
+    - Groceries
+  max_actions: 5
+
+workflow:
+  - id: collect-budget-signals
+    type: fetch
+    uses:
+      - ynab.budget_summary
+      - ynab.transactions_by_category
+    approval: auto
+    riskTier: low
+  - id: diagnose-spend-patterns
+    type: reason
+    approval: auto
+    riskTier: low
+    prompt: "Find patterns causing overspend and highlight avoidable costs."
+  - id: craft-reset-plan
+    type: verify
+    approval: ask
+    riskTier: medium
+    prompt: "Produce a clear next-month budget reset and a 7-day kickoff plan."
+
+policy:
+  approvalMode: ask
+  riskTier: medium
+  askBeforeSideEffects: true
+
+artifacts:
+  - id: monthly-summary
+    format: markdown
+    required: true
+  - id: budget-adjustments
+    format: json
+    schema: budget_adjustments_v1
+    required: true

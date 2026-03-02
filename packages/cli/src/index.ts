@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { runCommand } from "./commands/run.js";
 import { devCommand } from "./commands/dev.js";
 import { registerCommand } from "./commands/register.js";
+import { packTestCommand, packPublishCommand } from "./commands/pack.js";
 
 // Load .env.local from project root
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -49,5 +50,22 @@ program
   .option("-v, --verbose", "Show detailed output including discovered tools")
   .option("-y, --yes", "Non-interactive mode, accept all defaults")
   .action(registerCommand);
+
+const packProgram = program
+  .command("pack")
+  .description("Validate, publish, and manage shareable operator packs");
+
+packProgram
+  .command("test")
+  .description("Validate a pack directory")
+  .argument("<path>", "Path to pack directory")
+  .action(packTestCommand);
+
+packProgram
+  .command("publish")
+  .description("Validate and publish a pack into local registry storage")
+  .argument("<path>", "Path to pack directory")
+  .option("--out-dir <dir>", "Override publish output directory")
+  .action(packPublishCommand);
 
 program.parse();

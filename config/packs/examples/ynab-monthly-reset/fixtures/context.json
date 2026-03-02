@@ -1,0 +1,39 @@
+[
+  {
+    "sourceId": "ynab-budget-summary",
+    "sourceName": "YNAB Budget Summary",
+    "data": {
+      "month": "2026-01",
+      "income": 7200,
+      "assigned": 7100,
+      "activity": 7420,
+      "available": -320
+    }
+  },
+  {
+    "sourceId": "ynab-transactions-by-category",
+    "sourceName": "YNAB Transactions by Category",
+    "data": [
+      {
+        "category": "Dining Out",
+        "budgeted": 350,
+        "spent": 520
+      },
+      {
+        "category": "Shopping",
+        "budgeted": 250,
+        "spent": 430
+      },
+      {
+        "category": "Groceries",
+        "budgeted": 650,
+        "spent": 700
+      },
+      {
+        "category": "Transportation",
+        "budgeted": 180,
+        "spent": 160
+      }
+    ]
+  }
+]

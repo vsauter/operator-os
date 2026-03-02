@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "ynab-monthly-reset",
+  "name": "YNAB Monthly Reset",
+  "version": "1.0.0",
+  "description": "Reviews last month spend, flags risk categories, and proposes next-month targets.",
+  "author": "OperatorOS Example",
+  "license": "MIT",
+  "tags": ["budget", "finance", "personal"],
+  "requirements": {
+    "connectors": ["ynab"],
+    "capabilities": ["budget.read", "budget.plan"]
+  },
+  "policy": {
+    "defaultApprovalMode": "ask",
+    "sideEffects": "none"
+  },
+  "files": {
+    "operator": "operator.yaml",
+    "readme": "README.md",
+    "fixtureContext": "fixtures/context.json"
+  }
+}

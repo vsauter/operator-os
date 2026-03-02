@@ -16,3 +16,7 @@ config/operators/local/
 
 # TypeScript build info
 *.tsbuildinfo
+config/packs/imported/
+config/packs/published/
+config/packs/installed/
+config/packs/local/

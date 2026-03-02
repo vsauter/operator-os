@@ -508,3 +508,33 @@ When `OPERATOR_API_KEY` is not set, authentication is disabled (localhost mode).
 ## License
 
 Apache 2.0 - See [LICENSE](LICENSE) for details.
+
+## Local Packs (OSS)
+
+Packs are portable workflow bundles that can be validated, tested with fixture data, and installed as local operators.
+Hosted sharing/discovery endpoints are intentionally not included in this OSS repo.
+
+### Pack directory format
+
+```text
+my-pack/
+  manifest.json
+  operator.yaml
+  README.md
+  fixtures/context.json
+```
+
+### CLI commands
+
+```bash
+# Validate a pack directory
+pnpm operator pack test config/packs/examples/ynab-monthly-reset
+
+# Publish a validated pack to local registry storage
+pnpm operator pack publish config/packs/examples/ynab-monthly-reset
+```
+
+### API endpoints
+
+- `POST /api/local-packs/install` - install a bundle payload as local operator YAML
+- `POST /api/local-packs/demo-run` - run fixture-only demo from bundle payload (no connector credentials required)
