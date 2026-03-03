@@ -118,7 +118,7 @@ export function createToolHandlers(client: PylonClient) {
             text: JSON.stringify(
               {
                 count: issues.length,
-                issues: issues.map(formatIssue),
+                issues: issues.map((i) => formatIssue(i)),
               },
               null,
               2
@@ -139,7 +139,7 @@ export function createToolHandlers(client: PylonClient) {
               {
                 count: issues.length,
                 description: "Issues waiting for your team to respond",
-                issues: issues.map(formatIssue),
+                issues: issues.map((i) => formatIssue(i)),
               },
               null,
               2
@@ -159,7 +159,7 @@ export function createToolHandlers(client: PylonClient) {
             text: JSON.stringify(
               {
                 count: issues.length,
-                issues: issues.map(formatIssue),
+                issues: issues.map((i) => formatIssue(i)),
               },
               null,
               2
@@ -183,7 +183,7 @@ export function createToolHandlers(client: PylonClient) {
               {
                 query: args.query,
                 count: issues.length,
-                issues: issues.map(formatIssue),
+                issues: issues.map((i) => formatIssue(i)),
               },
               null,
               2
@@ -244,7 +244,7 @@ export function createToolHandlers(client: PylonClient) {
                   open_issues: openIssues.length,
                   waiting_on_team: waitingOnTeam.length,
                 },
-                issues: issues.map(formatIssue),
+                issues: issues.map((i) => formatIssue(i)),
               },
               null,
               2
