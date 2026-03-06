@@ -3,7 +3,7 @@
  * Connects to MCP servers and discovers available tools
  */
 
-import { createClient, listTools, closeClient, type DiscoveredTool } from "../mcp/client";
+import { createClient, listTools, closeClient, type DiscoveredTool } from "../mcp/client.js";
 
 export interface DiscoveryResult {
   success: boolean;

@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { dirname, resolve } from "path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { LoadedPack, PackBundle, PackManifest } from "./types";
+import type { LoadedPack, PackBundle, PackManifest } from "./types.js";
 
 export function resolvePackFileName(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-");

@@ -3,8 +3,8 @@ export type {
   ConnectorSource,
   LegacySource,
   OperatorSource,
-} from "./connectors/types";
-export { isConnectorSource, isLegacySource } from "./connectors/types";
+} from "./connectors/types.js";
+export { isConnectorSource, isLegacySource } from "./connectors/types.js";
 
 export interface MCPConnection {
   command: string;
@@ -28,7 +28,7 @@ export interface Task {
 }
 
 // Import OperatorSource from connectors for the new config type
-import type { OperatorSource } from "./connectors/types";
+import type { OperatorSource } from "./connectors/types.js";
 
 export interface OperatorConfig {
   id: string;

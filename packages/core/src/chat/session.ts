@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ContextResult } from "../types";
+import type { ContextResult } from "../types.js";
 
 export interface ChatMessage {
   role: "user" | "assistant";

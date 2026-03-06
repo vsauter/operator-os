@@ -3,9 +3,9 @@
  * Executes fetch operations for MCP-based connectors
  */
 
-import { createClient, callTool, closeClient } from "../mcp/client";
-import { resolveTemplate } from "./resolver";
-import type { ExecutionContext, AdapterResult } from "./types";
+import { createClient, callTool, closeClient } from "../mcp/client.js";
+import { resolveTemplate } from "./resolver.js";
+import type { ExecutionContext, AdapterResult } from "./types.js";
 
 /**
  * Execute an MCP fetch operation

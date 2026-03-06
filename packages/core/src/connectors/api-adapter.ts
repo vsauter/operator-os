@@ -3,8 +3,8 @@
  * Executes fetch operations for API-based connectors
  */
 
-import { resolveTemplate, resolveTemplates } from "./resolver";
-import type { ExecutionContext, AdapterResult } from "./types";
+import { resolveTemplate, resolveTemplates } from "./resolver.js";
+import type { ExecutionContext, AdapterResult } from "./types.js";
 
 /**
  * Parse endpoint string into method and path

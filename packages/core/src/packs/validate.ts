@@ -1,5 +1,5 @@
 import { parse as parseYaml } from "yaml";
-import type { PackBundle, PackManifest, PackValidationResult } from "./types";
+import type { PackBundle, PackManifest, PackValidationResult } from "./types.js";
 
 const PACK_ID_PATTERN = /^[a-z0-9-]+$/;
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;

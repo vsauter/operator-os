@@ -8,8 +8,8 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { stringify } from "yaml";
-import type { ConnectorDefinition, FetchDefinition, ParamDefinition } from "./types";
-import type { DiscoveredTool } from "./discover";
+import type { ConnectorDefinition, FetchDefinition, ParamDefinition } from "./types.js";
+import type { DiscoveredTool } from "./discover.js";
 
 /**
  * Sanitize connector ID to prevent path traversal attacks

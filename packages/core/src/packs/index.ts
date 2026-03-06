@@ -3,8 +3,8 @@ export type {
   PackBundle,
   PackValidationResult,
   LoadedPack,
-} from "./types";
-export { validatePackManifest, validatePackBundle } from "./validate";
+} from "./types.js";
+export { validatePackManifest, validatePackBundle } from "./validate.js";
 export {
   loadPackFromDirectory,
   savePackBundle,
@@ -14,4 +14,4 @@ export {
   bundleToJson,
   parseBundleJson,
   bundleToYamlManifest,
-} from "./fs";
+} from "./fs.js";

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ContextResult, Briefing } from "../types";
-import { getGoalsContext } from "../goals/loader";
+import type { ContextResult, Briefing } from "../types.js";
+import { getGoalsContext } from "../goals/loader.js";
 
 const DEFAULT_PROMPT = `You are generating a daily briefing based on the provided context.
 

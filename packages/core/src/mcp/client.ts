@@ -2,7 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { existsSync, readFileSync } from "fs";
 import { resolve, dirname } from "path";
-import type { MCPConnection } from "../types";
+import type { MCPConnection } from "../types.js";
 
 /**
  * Find the monorepo root by looking for pnpm-workspace.yaml or package.json with workspaces

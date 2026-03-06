@@ -1,8 +1,8 @@
 import { readFile } from "fs/promises";
 import { parse } from "yaml";
 import { resolve } from "path";
-import type { OperatorConfig, Task } from "../types";
-import type { OperatorSource, LegacySource, ConnectorSource } from "../connectors/types";
+import type { OperatorConfig, Task } from "../types.js";
+import type { OperatorSource, LegacySource, ConnectorSource } from "../connectors/types.js";
 
 interface RawOperatorConfig {
   id: string;
